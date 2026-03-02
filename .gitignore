@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Dados gerados localmente (serão recriados na nuvem)
+# dashboard_data.json  ← manter comentado: precisamos commitar o JSON inicial
+
+# PDFs gerados
+factsheet_*.pdf
+
+# Fonts baixadas automaticamente
+fonts/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp

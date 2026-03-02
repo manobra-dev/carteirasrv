@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carteiras RV - Eleva MFO</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,#1a2d5a,#2c5282 55%,#2b6cb0);color:#fff;padding:22px 36px 18px;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.hlogo{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.65;margin-bottom:4px}
+.htitle{font-size:21px;font-weight:700}
+.header-logo-img{height:64px;width:auto;max-width:280px;object-fit:contain;display:block;margin-bottom:4px;filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}
+.header-logo-fallback{display:none}
+.hsubtitle{font-size:12px;opacity:.72;margin-top:4px}
+.perf-row{display:flex;gap:10px;flex-wrap:wrap}
+.pill{background:rgba(255,255,255,.14);border-radius:12px;padding:8px 16px;text-align:center;min-width:120px}
+.pill .plabel{font-size:9px;text-transform:uppercase;letter-spacing:.8px;opacity:.7}
+.pill .pval{font-size:18px;font-weight:700;margin-top:2px}
+.pval.pos{color:#68d391}.pval.neg{color:#fc8181}.pval.neutral{color:#fbd38d}
+.pill .pdiff{font-size:10px;margin-top:4px;opacity:.9;letter-spacing:.02em}
+.pdiff.dpos{color:#9ae6b4}.pdiff.dneg{color:#fc8181}.pdiff.dneut{color:#fbd38d}
+
+
+/* ── CONTAINER ── */
+.container{max-width:1280px;margin:0 auto;padding:24px 20px}
+
+/* ── CARDS ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:22px}
+.card{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 8px rgba(0,0,0,.07);border-left:4px solid #2c5282}
+.card h4{font-size:10px;color:#a0aec0;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.card .cv{font-size:21px;font-weight:700;color:#2d3748;margin-top:4px}
+.card .cs{font-size:10px;color:#718096;margin-top:2px}
+
+/* ── TABS ── */
+.port-tabs{display:flex;gap:10px;margin-bottom:20px;align-items:center}
+.pdf-btn{display:flex;align-items:center;gap:7px;padding:9px 18px;border:2px solid #e53e3e;background:#fff5f5;color:#c53030;border-radius:10px;cursor:pointer;font-weight:600;font-size:12px;transition:all .15s;white-space:nowrap}
+.pdf-btn:hover{background:#c53030;color:#fff;border-color:#c53030}
+.pdf-btn.loading{opacity:.65;cursor:not-allowed;pointer-events:none}
+.port-btn{display:flex;align-items:center;gap:7px;padding:10px 20px;border:2px solid #2c5282;background:#fff;color:#2c5282;border-radius:10px;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s}
+.port-btn.active{background:#2c5282;color:#fff;box-shadow:0 3px 10px rgba(44,82,130,.3)}
+.port-btn:hover:not(.active){background:#ebf4ff}
+.chart-tabs{display:flex;gap:2px;margin-bottom:0;border-bottom:2px solid #e2e8f0}
+.ctab{padding:9px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#718096;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s;border-radius:6px 6px 0 0}
+.ctab.active{color:#2c5282;border-bottom-color:#2c5282;font-weight:700;background:#f0f4fc}
+.ctab:hover:not(.active){color:#2c5282;background:#f7faff}
+
+/* ── PANELS ── */
+.panel{display:none;background:#fff;border-radius:0 0 14px 14px;padding:26px;box-shadow:0 2px 16px rgba(0,0,0,.06)}
+.panel.active{display:block}
+.chart-box{position:relative;height:420px}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:280px;color:#a0aec0;gap:12px}
+.spinner{width:36px;height:36px;border:4px solid #e2e8f0;border-top-color:#2c5282;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{background:#fff5f5;border:1px solid #fed7d7;color:#c53030;padding:14px 18px;border-radius:8px;font-size:13px;margin:12px}
+.note{font-size:11px;color:#a0aec0;margin-top:12px;font-style:italic}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
+.tbl th{background:#2c5282;color:#fff;padding:10px 13px;text-align:left;font-weight:600;font-size:11px;letter-spacing:.3px;white-space:nowrap}
+.tbl td{padding:10px 13px;border-bottom:1px solid #edf2f7;white-space:nowrap}
+.tbl tr:nth-child(even) td{background:#f7fafc}
+.tbl tr:hover td{background:#ebf4ff}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.b-fin{background:#bee3f8;color:#2b6cb0}.b-ene{background:#feebc8;color:#c05621}
+.b-com{background:#fed7aa;color:#9c4221}.b-ind{background:#e9d8fd;color:#553c9a}
+.b-min{background:#fefcbf;color:#744210}.b-agro{background:#c6f6d5;color:#276749}
+.b-san{background:#b2f5ea;color:#234e52}.b-idx{background:#e9d8fd;color:#553c9a}
+.b-seg{background:#fed7e2;color:#97266d}.b-pet{background:#e2e8f0;color:#4a5568}
+.b-avi{background:#c6f6d5;color:#1a4731}.b-sid{background:#e2e8f0;color:#2d3748}.b-ele{background:#e6f7ff;color:#08519c}
+.alias-chip{display:inline-block;background:#fffbeb;border:1px solid #f6e05e;color:#744210;border-radius:3px;font-size:9px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+.dy-val{font-weight:700;color:#276749}.dy-low{color:#c05621}
+
+/* ── RENTABILITY TABLE (lâmina mensal) ── */
+.rent-wrap{overflow-x:auto;margin-top:28px}
+.rent-title{font-size:13px;font-weight:700;color:#2c5282;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #ebf4ff;letter-spacing:.02em}
+.rent-tbl{border-collapse:collapse;font-size:12px;min-width:900px;width:100%}
+.rent-tbl th{background:#2d3748;color:#fff;padding:7px 10px;text-align:center;font-weight:600;font-size:11px;white-space:nowrap}
+.rent-tbl th:first-child{text-align:left;min-width:54px}
+.rent-tbl td{padding:5px 10px;text-align:center;border-bottom:1px solid #edf2f7;white-space:nowrap;font-size:12px}
+.rent-tbl td:first-child{text-align:left;font-weight:700;color:#2d3748;font-size:11px;background:#f7fafc}
+.rent-tbl tr.row-cart td{background:#fff;font-weight:600}
+.rent-tbl tr.row-cdi  td{background:#f7fafc;font-size:11px;color:#718096}
+.rent-tbl tr.row-cdi  td:first-child{color:#a0aec0;font-weight:500}
+.rent-tbl tr:hover td{filter:brightness(0.97)}
+.rent-tbl td.col-ano,
+.rent-tbl td.col-acum{background:#ebf4ff!important;font-weight:700;color:#2b6cb0}
+.rent-tbl tr.row-cdi td.col-ano,
+.rent-tbl tr.row-cdi td.col-acum{background:#dbeafe!important;color:#3b5fa0}
+.rent-neg{color:#c53030!important;font-weight:600}
+.rent-zero{color:#718096}
+.rent-dash{color:#cbd5e0}
+.rent-tbl td.col-ano-label{background:#2d3748!important;color:#fff!important;font-weight:700;font-size:12px;text-align:center!important;vertical-align:middle}
+.rent-tbl td.col-leg-cart{background:#ebf4ff!important;color:#2b6cb0;font-weight:700;font-size:11px;white-space:nowrap;padding-left:10px;text-align:left}
+.rent-tbl td.col-leg-bova{background:#f7fafc!important;color:#718096;font-size:10px;font-weight:400;white-space:nowrap;padding-left:10px;font-style:italic;text-align:left}
+.rent-tbl td.col-leg-diff{background:#fffff0!important;color:#744210;font-size:10px;font-weight:600;white-space:nowrap;padding-left:10px;text-align:left}
+.rent-tbl tr.row-diff td{background:#fffff0;font-size:11px}
+.rent-tbl tr.row-diff td.col-ano{background:#fefce8!important;font-weight:700}
+.rent-tbl tr.row-diff td.col-acum{background:#fefce8!important;font-weight:700}
+.rent-pos{color:#276749!important;font-weight:700}
+.rent-tbl th.col-leg-hdr{min-width:110px}
+.rent-yr-sep td{border-top:2px solid #cbd5e0!important}
+
+/* ── SECTOR ── */
+.sector-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.s-row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #f7fafc}
+.s-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+.s-name{flex:1;font-size:12px;color:#4a5568}
+.s-pct{font-weight:700;font-size:13px;min-width:36px;text-align:right}
+.s-amt{font-size:10px;color:#a0aec0;min-width:70px;text-align:right}
+
+/* ── METODOLOGIA ── */
+.meto-section{margin-bottom:28px}
+.meto-section h3{font-size:14px;font-weight:700;color:#2c5282;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #ebf4ff}
+.meto-section p{font-size:13px;color:#4a5568;line-height:1.7;margin-bottom:8px}
+.meto-section ul{padding-left:18px;font-size:13px;color:#4a5568;line-height:1.9}
+.code-block{background:#1a202c;color:#a8d8b9;border-radius:8px;padding:16px 18px;font-family:'Courier New',monospace;font-size:12px;line-height:1.7;margin:10px 0;overflow-x:auto;white-space:pre}
+.code-block .kw{color:#fbd38d}.code-block .cm{color:#718096;font-style:italic}
+.code-block .str{color:#fc8181}.code-block .fn{color:#76e4f7}
+.alias-table{border-collapse:collapse;width:100%;font-size:13px;margin:10px 0}
+.alias-table th{background:#ebf4ff;color:#2c5282;padding:8px 12px;text-align:left;font-weight:600}
+.alias-table td{padding:8px 12px;border-bottom:1px solid #e2e8f0}
+.tag-old{background:#fff5f0;color:#c05621;border-radius:4px;padding:2px 7px;font-weight:600;font-size:12px}
+.tag-new{background:#f0fff4;color:#276749;border-radius:4px;padding:2px 7px;font-weight:600;font-size:12px}
+.info-box{background:#ebf8ff;border-left:4px solid #3182ce;border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:#2b4478;margin:10px 0}
+.warn-box{background:#fffbeb;border-left:4px solid #d69e2e;border-radius:0 8px 8px 0;padding:12px 16px;font-size:13px;color:#744210;margin:10px 0}
+
+/* ── CONTRIBUTION CARDS (Top3 + Pior) ── */
+.attr-section{margin:22px 0 8px}
+.attr-label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#718096;margin-bottom:10px}
+.attr-row{display:flex;gap:12px;flex-wrap:wrap}
+.attr-card{flex:1;min-width:140px;border-radius:10px;padding:14px 16px;border:1.5px solid #e2e8f0;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.attr-card.pos{border-left:4px solid #38a169}
+.attr-card.neg{border-left:4px solid #e53e3e}
+.attr-rank{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#a0aec0;margin-bottom:4px}
+.attr-ticker{font-size:16px;font-weight:800;color:#2d3748}
+.attr-ret{font-size:20px;font-weight:800;margin:4px 0 2px;line-height:1}
+.attr-ret.pos{color:#276749}
+.attr-ret.neg{color:#c53030}
+.attr-detail{font-size:11px;color:#a0aec0;margin-top:2px}
+.attr-contrib{font-size:12px;font-weight:700;margin-top:6px;padding-top:6px;border-top:1px solid #edf2f7}
+.attr-contrib.pos{color:#38a169}
+.attr-contrib.neg{color:#e53e3e}
+
+
+/* ── MISC ── */
+.disclaimer{margin-top:22px;padding:12px 16px;background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;font-size:11px;color:#744210}
+@media(max-width:680px){.sector-grid{grid-template-columns:1fr}.header-top{flex-direction:column}.perf-row{justify-content:center}}
+
+/* ── DATA SOURCE BANNER ── */
+#data-banner{display:none;margin-bottom:18px;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.1)}
+.banner-ok   {background:#f0fff4;border:1px solid #9ae6b4;padding:10px 16px;font-size:12px;color:#276749;display:flex;align-items:center;gap:8px}
+.banner-err  {background:#fff5f5;border:1px solid #feb2b2}
+.banner-err .b-head{background:#c53030;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
+.banner-err .b-body{padding:16px 20px;font-size:13px;color:#2d3748}
+.banner-err .b-body p{margin-bottom:10px;line-height:1.6}
+.b-steps{counter-reset:step;padding:0;list-style:none;margin:12px 0}
+.b-steps li{counter-increment:step;display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:#f7fafc;border-radius:6px;margin-bottom:6px;font-size:12px}
+.b-steps li::before{content:counter(step);background:#2c5282;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px}
+.b-cmd{background:#1a202c;color:#68d391;border-radius:4px;padding:2px 8px;font-family:monospace;font-size:12px;display:inline-block;margin:2px 0}
+.token-row{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+.token-row input{flex:1;min-width:200px;padding:7px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:monospace}
+.btn-token{padding:7px 16px;background:#3182ce;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-dismiss{padding:6px 12px;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;font-size:11px;cursor:pointer;margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <img src="logo_eleva_branco.png" alt="Eleva Multi-Family Office"
+           class="header-logo-img"
+           onerror="this.style.display='none';document.getElementById('hdr-title-fallback').style.display='block'">
+      <div id="hdr-title-fallback" class="htitle header-logo-fallback">Carteiras RV — Eleva MFO</div>
+    </div>
+    <div class="perf-row">
+      <div class="pill" id="pill-acoes">
+        <div class="plabel">Carteira Ações</div>
+        <div class="pval pos" id="pill-acoes-val">—</div>
+        <div class="plabel" id="pill-acoes-lbl">Acumulado</div>
+        <div class="pdiff" id="pill-acoes-diff"></div>
+      </div>
+      <div class="pill" id="pill-dividendos">
+        <div class="plabel">Carteira Dividendos</div>
+        <div class="pval pos" id="pill-div-val">—</div>
+        <div class="plabel" id="pill-div-lbl">Acumulado</div>
+        <div class="pdiff" id="pill-div-diff"></div>
+      </div>
+      <div class="pill" id="pill-bova">
+        <div class="plabel">IBOVESPA</div>
+        <div class="pval neutral" id="pill-bova-val">—</div>
+        <div class="plabel" id="pill-bova-lbl">Acumulado</div>
+      </div>
+      <div class="pill" id="pill-divo">
+        <div class="plabel">IDIV</div>
+        <div class="pval neutral" id="pill-divo-val">—</div>
+        <div class="plabel" id="pill-divo-lbl">Acumulado</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ MAIN ═══ -->
+<div class="container">
+
+  <!-- ═══ DATA SOURCE BANNER ═══ -->
+  <div id="data-banner">
+    <!-- Filled by JS: .banner-ok or .banner-err -->
+  </div>
+
+  <div class="cards">
+    <div class="card"><h4>Carteira de Ações</h4><div class="cv">14 ativos</div><div class="cs">Valor / Growth</div></div>
+    <div class="card" style="border-left-color:#38a169"><h4>Carteira de Dividendos</h4><div class="cv">10 ativos</div><div class="cs">Yield / Renda</div></div>
+    <div class="card" style="border-left-color:#d69e2e"><h4>Benchmark</h4><div class="cv">Ibovespa · IDIV</div><div class="cs">Ações: Ibovespa · Dividendos: IDIV</div></div>
+  </div>
+
+  <div class="port-tabs">
+    <button class="port-btn active" id="btn-acoes"     onclick="selectPortfolio('acoes')">Carteira de Ações</button>
+    <button class="port-btn"        id="btn-dividendos" onclick="selectPortfolio('dividendos')">Carteira de Dividendos</button>
+    <div style="flex:1"></div>
+    <button class="pdf-btn" id="btn-pdf" onclick="exportarPDF()" title="Exportar factsheet da carteira atual em PDF">
+      <span id="pdf-btn-icon">⬇</span> Exportar Factsheet PDF
+    </button>
+  </div>
+
+  <div class="chart-tabs">
+    <button class="ctab active" onclick="selectChart('perfcart',this)">Performance Acumulada</button>
+    <button class="ctab" id="tab-perf-btn" onclick="selectChart('perf',this)">Rentabilidade por Ação</button>
+    <button class="ctab"        onclick="selectChart('table',this)">Ativos da Carteira</button>
+    <button class="ctab"        onclick="selectChart('sector',this)">Composição por Setor</button>
+    <button class="ctab"        onclick="selectChart('risco',this)">Risco da Carteira</button>
+  </div>
+
+  <!-- NOVO: Performance Acumulada Ponderada da Carteira -->
+  <div id="panel-perfcart" class="panel active">
+    <div id="load-perfcart" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
+    <div id="wrap-perfcart" style="display:none">
+      <div class="chart-box"><canvas id="ch-perfcart"></canvas></div>
+      <p class="note">* Retorno acumulado ponderado pelos pesos históricos reais da carteira (mês a mês), composto mensalmente. Linha tracejada = benchmark da carteira.</p>
+      <div id="rentab-table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- EXISTENTE: Rentabilidade por Ação (individual) -->
+  <div id="panel-perf" class="panel">
+    <div id="load-perf" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
+    <div id="wrap-perf" style="display:none">
+      <div class="chart-box"><canvas id="ch-perf"></canvas></div>
+      <p class="note" id="note-perf">* Retorno % acumulado de cada ativo no ano vigente (base = fechamento de Dez do ano anterior). Barra cinza = benchmark.</p>
+      <div id="attr-perf"></div>
+    </div>
+  </div>
+
+  <div id="panel-sector" class="panel">
+    <div class="sector-grid">
+      <div style="display:flex;align-items:center;justify-content:center;max-height:400px">
+        <canvas id="ch-sector"></canvas>
+      </div>
+      <div id="sector-leg"></div>
+    </div>
+  </div>
+
+  <div id="panel-table" class="panel">
+    <div id="tbl-container"></div>
+  </div>
+
+  <!-- RISCO: Volatilidade Rolling + Drawdown Curve -->
+  <div id="panel-risco" class="panel">
+    <div id="load-risco" class="loading"><div class="spinner"></div><p>Calculando métricas de risco…</p></div>
+    <div id="wrap-risco" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+
+        <!-- VOLATILIDADE -->
+        <div>
+          <div class="chart-box" style="height:300px"><canvas id="ch-vol"></canvas></div>
+          <p class="note">* Volatilidade anualizada. Reflete a oscilação recente da carteira.</p>
+          <div id="vol-table" style="margin-top:10px"></div>
+        </div>
+
+        <!-- DRAWDOWN -->
+        <div>
+          <div class="chart-box" style="height:300px"><canvas id="ch-dd"></canvas></div>
+          <p class="note">* Curva de drawdown: queda acumulada do pico histórico até cada mês (underwater chart).</p>
+          <div id="dd-table" style="margin-top:10px"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="disclaimer">
+    ⚠️ <strong>Aviso Legal:</strong> Dashboard exclusivo para uso interno. Não constitui recomendação de investimento.
+    Rentabilidades passadas não garantem resultados futuros. DY indicativo baseado nos últimos 12 meses disponíveis.
+    Tickers EMBJ3, AXIA3 e AXIA6 consultados via aliases históricos (EMBR3, ELET3, ELET6) pois dados ainda indexados pelo ticker anterior.
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SCRIPT ═══════════════════════════ -->
+<script>
+// ╔══════════════════════════════════════════════════════╗
+// ║   TICKER ALIAS TABLE                                  ║
+// ║   Portfolio display name → data source ticker         ║
+// ╚══════════════════════════════════════════════════════╝
+const TICKER_ALIAS = {
+  'EMBJ3':  'EMBR3',  // Embraer — ticker renomeado (dados históricos em EMBR3)
+  'AXIA3':  'ELET3',  // Eletrobras ON — idem
+  'AXIA6':  'ELET6',  // Eletrobras PNB — idem
+  // JBS: ação B3 (JBBS3) até jun/2025 → BDR (JBSS32) jul/2025+
+  // Para DY e lookup simples, aponta para JBBS3 (maior cobertura histórica).
+  // A costura completa de preços é feita pelo serve.py.
+  'JBSS32': 'JBBS3',
+};
+function dataTicker(t) { return TICKER_ALIAS[t] || t; }
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   PORTFOLIO DATA                                      ║
+// ╚══════════════════════════════════════════════════════╝
+const PORTFOLIOS = {
+  acoes: {
+    name: 'Carteira de Ações',
+    benchmark: 'BOVA11',           // Ibovespa
+    tickers:  ['BPAC11','BBAS3','ITUB4','JPMC34','CPLE3','EMBJ3','WEGE3','GGBR4','VALE3','AURA33','AXIA3','TTEN3','CSMG3','IVVB11'],
+    weights:  [5,5,12,5,8,10,5,5,10,10,5,6,4,10],
+    sectors:  ['Financeiro','Financeiro','Financeiro','Financeiro','Energia Elétrica','Aviação','Indústria','Siderurgia','Mineração','Mineração','Energia Elétrica','Agroindústria','Saneamento','Índices']
+  },
+  dividendos: {
+    name: 'Carteira de Dividendos',
+    benchmark: 'DIVO11',           // ETF IDIV — Índice de Dividendos da B3
+    tickers:  ['BBDC4','CXSE3','ITUB4','B3SA3','SANB11','NDIV11','PETR4','VALE3','CSMG3','AXIA6'],
+    weights:  [10,8,15,5,5,10,12,10,15,10],
+    sectors:  ['Financeiro','Seguros','Financeiro','Financeiro','Financeiro','Índice','Petróleo & Gás','Mineração','Saneamento','Energia Elétrica']
+  }
+};
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   DIVIDEND YIELD (indicativo, últimos 12m)            ║
+// ║   Fonte: referência estática — sobrescrito pelo       ║
+// ║   serve.py (Fundamentus → brapi → este fallback).    ║
+// ║   Atualizar manualmente quando serve.py não rodar.   ║
+// ╚══════════════════════════════════════════════════════╝
+const DY_BASE = {
+  // ── Carteira de Ações ──────────────────────────────────
+  'BPAC11': 2.1,   // BTG Pactual — dividendos + JCP
+  'BBAS3':  8.8,   // Banco do Brasil — alto pagador
+  'ITUB4':  4.2,   // Itaú PN — inclui JCP
+  'JPMC34': 2.8,   // BDR JPMorgan
+  'CPLE3':  6.1,   // Copel
+  'EMBJ3':  0.9,   // Embraer — dividendo baixo
+  'WEGE3':  1.5,   // WEG — reinveste crescimento
+  'GGBR4':  5.3,   // Gerdau PN
+  'VALE3':  10.2,  // Vale — dividendo variável mas historicamente alto
+  'AURA33': 2.0,   // Aura Minerals
+  'AXIA3':  7.1,   // Eletrobras ON (ELET3)
+  'TTEN3':  2.3,   // Tten
+  'CSMG3':  5.4,   // Copasa
+  'IVVB11': 1.2,   // ETF S&P 500 — distribuição baixa
+  // ── Carteira de Dividendos ─────────────────────────────
+  'BBDC4':  6.2,   // Bradesco PN — inclui JCP
+  'CXSE3':  5.1,   // Caixa Seguridade
+  'B3SA3':  5.0,   // B3
+  'SANB11': 6.5,   // Santander Brasil units — inclui JCP
+  'NDIV11': 7.2,   // ETF IDIV — distribui rendimentos do índice de dividendos
+  'PETR4':  12.8,  // Petrobras PN — variável conforme resultado
+  'AXIA6':  7.4,   // Eletrobras PNB (ELET6)
+  'CPFE3':  5.8,   // CPFL Energia
+  // ── Ativos históricos (já saíram da carteira) ──────────
+  'JBSS32': 3.8,   // JBS BDR (jul/2025+) — alias→JBBS3
+  'JBBS3':  3.8,   // JBS ação B3 (até jun/2025)
+  'BPAN4':  3.2,   // Banco Pan PN
+  'SUZB3':  4.5,   // Suzano
+  'CPLE6':  6.4,   // Copel PNB
+  'IGTI11': 2.8,   // Iguatemi units
+  'ARZZ3':  1.9,   // Arezzo
+  'AZZA3':  2.1,   // Azzas 2154 (ex-Arezzo)
+  'SMAL11': 3.5,   // ETF Small Caps
+  'CPLE5':  6.2,   // Copel PNA
+  'BBSE3':  5.9,   // BB Seguridade
+};
+
+const SECTOR_COLORS = {
+  'Financeiro':'#2b6cb0','Energia':'#c05621','Energia Elétrica':'#0e6b9e',
+  'Aviação':'#276749','Indústria':'#553c9a','Siderurgia':'#4a5568',
+  'Commodities':'#9c4221','Mineração':'#b7791f','Agroindústria':'#2f855a',
+  'Saneamento':'#2c7a7b','Índices':'#805ad5','Índice':'#805ad5',
+  'Seguros':'#b83280','Petroquímica':'#744210','Petróleo & Gás':'#975a16'
+};
+const BADGE_CLASS = {
+  'Financeiro':'b-fin','Energia':'b-ene','Energia Elétrica':'b-ele',
+  'Aviação':'b-avi','Indústria':'b-ind','Siderurgia':'b-sid',
+  'Commodities':'b-com','Mineração':'b-min','Agroindústria':'b-agro',
+  'Saneamento':'b-san','Índices':'b-idx','Índice':'b-idx',
+  'Seguros':'b-seg','Petroquímica':'b-pet','Petróleo & Gás':'b-pet'
+};
+const LINE_COLORS = [
+  '#2b6cb0','#c05621','#276749','#553c9a','#b7791f','#2c7a7b',
+  '#9b2335','#1a4e3a','#5a1a8a','#7b341e','#1a5276','#117a65',
+  '#4d5656','#d4ac0d'
+];
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   STATE                                               ║
+// ╚══════════════════════════════════════════════════════╝
+let currentPortfolio = 'acoes';
+let currentChart = 'perfcart';
+const chartInstances = {};
+const dataCache = {};
+let dyCache = {};
+
+// Período fixo: Jun/2024 → último mês com dados disponíveis (automático)
+// Inicia com o mês anterior; atualizado após carregar dashboard_data.json
+let _endMonth = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+let START_TS = Math.floor(new Date('2024-06-01T00:00:00Z').getTime() / 1000);
+let END_TS   = Math.floor(new Date(_endMonth + '-28T00:00:00Z').getTime() / 1000);
+
+// Local JSON state
+let localJson      = null;   // loaded dashboard_data.json (if available)
+let localJsonTried = false;  // avoid re-fetching
+let brapiToken     = '';     // optional brapi.dev token entered by user
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   UTILS                                               ║
+// ╚══════════════════════════════════════════════════════╝
+function fmtMonth(ts) {
+  const d = new Date(ts * 1000);
+  const m = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${m[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(2)}`;
+}
+function fmtBRL(v) { return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function destroyChart(k) { if (chartInstances[k]) { chartInstances[k].destroy(); delete chartInstances[k]; } }
+
+// Período fixo: Jun/2024 → último mês encerrado
+// (anterior ao mês atual; calculado automaticamente)
+function _lastClosedMonth() {
+  const now = new Date();
+  // Retrocede 1 mês para pegar o último mês com fechamento completo
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 28);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   BANNER HELPERS                                      ║
+// ╚══════════════════════════════════════════════════════╝
+function showBannerOk(msg) {
+  const b = document.getElementById('data-banner');
+  b.innerHTML = `<div class="banner-ok">✅ ${msg}</div>`;
+  b.style.display = 'block';
+}
+
+function showBannerError() {
+  const b = document.getElementById('data-banner');
+  b.innerHTML = `
+    <div class="banner-err">
+      <div class="b-head">⚠️  Não foi possível carregar dados de mercado</div>
+      <div class="b-body">
+        <p><strong>Por que isso acontece?</strong>
+        Ao abrir o HTML direto (protocolo <code>file://</code>), o browser bloqueia
+        requisições a APIs externas por segurança (política CORS). A solução é servir o arquivo via <code>localhost</code>.</p>
+        <p><strong>Solução recomendada — execute no terminal:</strong></p>
+        <ol class="b-steps">
+          <li>Vá até a pasta onde estão os arquivos<br>
+              <span class="b-cmd">cd caminho/para/a/pasta</span></li>
+          <li>Execute o servidor local (busca dados + abre o browser automaticamente)<br>
+              <span class="b-cmd">python3 serve.py</span></li>
+          <li>O dashboard abrirá em <span class="b-cmd">http://localhost:8080</span> com os dados carregados.</li>
+        </ol>
+        <p style="margin-top:14px"><strong>Opção alternativa — token brapi.dev gratuito:</strong><br>
+        Cadastre-se em <a href="https://brapi.dev" target="_blank" style="color:#2c5282">brapi.dev</a>
+        (grátis, 15k req/mês) e cole o token abaixo:</p>
+        <div class="token-row">
+          <input id="token-input" type="text" placeholder="Cole seu token brapi.dev aqui…">
+          <button class="btn-token" onclick="applyToken()">🔑 Usar Token</button>
+        </div>
+        <br><button class="btn-dismiss" onclick="document.getElementById('data-banner').style.display='none'">Fechar aviso</button>
+      </div>
+    </div>`;
+  b.style.display = 'block';
+}
+
+function applyToken() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  brapiToken = t;
+  Object.keys(dataCache).forEach(k => delete dataCache[k]);
+  dyCache = {}; dySourceMap = {};
+  document.getElementById('data-banner').style.display = 'none';
+  renderChart(currentChart);
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   DATA LOADING — 3-layer strategy                    ║
+// ║                                                       ║
+// ║   Layer 1 (fastest): dashboard_data.json local       ║
+// ║     → Works when served via serve.py / localhost     ║
+// ║   Layer 2 (live):    brapi.dev API                   ║
+// ║     → Works from localhost or with valid token       ║
+// ║   Layer 3 (fallback): show error banner              ║
+// ╚══════════════════════════════════════════════════════╝
+
+// ── Layer 1: load local JSON ─────────────────────────────
+async function tryLoadLocalJson() {
+  if (localJsonTried) return;
+  localJsonTried = true;
+  try {
+    const r = await fetch('./dashboard_data.json');
+    if (!r.ok) return;
+    localJson = await r.json();
+    // Recua START_TS um mês antes do início da carteira, para que o
+    // preço-base esteja disponível e o 1º mês mostre retorno real.
+    if (localJson.start_date) {
+      const [sy, sm] = localJson.start_date.split('-').map(Number);
+      const prevM = sm === 1 ? 12 : sm - 1;
+      const prevY = sm === 1 ? sy - 1 : sy;
+      START_TS = Math.floor(new Date(`${prevY}-${String(prevM).padStart(2,'0')}-01T00:00:00Z`).getTime() / 1000);
+    }
+    // Detecta o último mês com dados disponíveis no JSON (ex: "2026-02")
+    // para que os cards mostrem o mês real em vez de sempre usar mês anterior
+    if (localJson.prices) {
+      const allMonthKeys = Object.values(localJson.prices)
+        .flatMap(monthMap => Object.keys(monthMap || {}))
+        .filter(k => /^\d{4}-\d{2}$/.test(k));
+      if (allMonthKeys.length) {
+        const latestFromData = allMonthKeys.sort().pop();
+        // Nunca mostra mês atual (parcial) — sempre usa o último mês fechado
+        const lastClosedYM = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+        _endMonth = latestFromData <= lastClosedYM ? latestFromData : lastClosedYM;
+        END_TS = Math.floor(new Date(_endMonth + '-28T00:00:00Z').getTime() / 1000);
+      }
+    }
+    showBannerOk(`Dados locais carregados (dashboard_data.json gerado em ${localJson.generated_at || '?'}).`);
+    // Atualiza pills do cabeçalho com retornos acumulados reais
+    setTimeout(updateHeaderPills, 0);
+  } catch(_) { /* silently fall through to Layer 2 */ }
+}
+
+// Parse local JSON into the same {ticker: [{date, close}]} format used by charts
+function parseLocalJson(portfolioKey) {
+  if (!localJson?.prices) return null;
+  const p = PORTFOLIOS[portfolioKey];
+  const allT = [...new Set([...p.tickers, 'BOVA11', p.benchmark || 'BOVA11'])];
+  const result = {};
+
+  for (const display of allT) {
+    const apiT = dataTicker(display);
+    const priceMap = localJson.prices[display] ?? localJson.prices[apiT];
+    if (!priceMap) continue;
+
+    // JSON já tem 1 entrada por mês ("YYYY-MM"), mas normalizar
+    // garante timestamps consistentes com os da API ao vivo
+    const raw = Object.entries(priceMap).map(([ym, close]) => ({
+      date: Math.floor(new Date(ym + '-01T00:00:00Z').getTime() / 1000),
+      close: Number(close)
+    }));
+    const hist = normalizeMonthly(raw, START_TS);
+
+    if (hist.length) result[display] = hist;
+  }
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Atualiza pills do cabeçalho com retorno do mês vigente ──
+// Chamado após tryLoadLocalJson() com sucesso.
+function updateHeaderPills() {
+  if (!localJson?.prices) return;
+
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // Timestamps do mês vigente e do mês anterior
+  const [ey, em] = _endMonth.split('-').map(Number);
+  const prevM  = em === 1 ? 12 : em - 1;
+  const prevY  = em === 1 ? ey - 1 : ey;
+  const prevKey = `${prevY}-${String(prevM).padStart(2,'0')}`;
+  const endTs  = Math.floor(new Date(`${ey}-${String(em).padStart(2,'0')}-01T00:00:00Z`).getTime() / 1000);
+  const prevTs = Math.floor(new Date(`${prevKey}-01T00:00:00Z`).getTime() / 1000);
+  const monthLabel = `${MESES[em-1]}/${String(ey).slice(2)}`;
+
+  // Retorno ponderado do mês vigente para um portfolio
+  function calcMonthReturn(portKey) {
+    const parsed = parseLocalJson(portKey);
+    if (!parsed) return null;
+    const p      = PORTFOLIOS[portKey];
+    const wHist  = localJson.weights_history?.[portKey] || {};
+    const wMonth = wHist[_endMonth] || null;
+    let wRet = 0, wSum = 0;
+    p.tickers.forEach((ticker, i) => {
+      const hist = parsed[ticker];
+      if (!hist) return;
+      const curr = hist.find(d => d.date === endTs);
+      const prev = hist.find(d => d.date === prevTs);
+      if (!curr || !prev || !prev.close) return;
+      const ret = (curr.close - prev.close) / prev.close;
+      const w   = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
+      if (!w) return;
+      wRet += (w / 100) * ret;
+      wSum += w / 100;
+    });
+    return wSum > 0 ? wRet * 100 : null;
+  }
+
+  // Retorno de um benchmark no mês vigente (direto do JSON)
+  function calcBenchMonth(ticker) {
+    const pm = localJson.prices[ticker];
+    if (!pm) return null;
+    const curr = Number(pm[_endMonth]);
+    const prev = Number(pm[prevKey]);
+    if (!curr || !prev) return null;
+    return (curr - prev) / prev * 100;
+  }
+
+  // Helpers de formatação
+  function fmtPill(v) {
+    if (v === null) return '—';
+    return (v >= 0 ? '+' : '') + v.toFixed(2).replace('.', ',') + '%';
+  }
+  function valClass(v) {
+    if (v === null) return 'neutral';
+    return v >= 0 ? 'pos' : 'neg';
+  }
+  function diffClass(d) {
+    if (d === null) return 'dneut';
+    return d > 0.005 ? 'dpos' : d < -0.005 ? 'dneg' : 'dneut';
+  }
+
+  const retAcoes = calcMonthReturn('acoes');
+  const retDiv   = calcMonthReturn('dividendos');
+  const retBova  = calcBenchMonth('BOVA11');
+  const retDivo  = calcBenchMonth('DIVO11');
+
+  const diffAcoes = (retAcoes !== null && retBova !== null) ? (retAcoes - retBova) : null;
+  const diffDiv   = (retDiv   !== null && retDivo !== null) ? (retDiv   - retDivo) :
+                    (retDiv   !== null && retBova !== null) ? (retDiv   - retBova) : null;
+  const diffLabelDiv = retDivo !== null ? 'Δ IDIV' : 'Δ IBOV';
+
+  // Pill Carteira de Ações
+  const elAcoesVal  = document.getElementById('pill-acoes-val');
+  const elAcoesLbl  = document.getElementById('pill-acoes-lbl');
+  const elAcoesDiff = document.getElementById('pill-acoes-diff');
+  if (elAcoesVal)  { elAcoesVal.textContent = fmtPill(retAcoes); elAcoesVal.className = `pval ${valClass(retAcoes)}`; }
+  if (elAcoesLbl)  elAcoesLbl.textContent = monthLabel;
+  if (elAcoesDiff) {
+    if (diffAcoes !== null) {
+      elAcoesDiff.textContent = `Δ IBOV: ${diffAcoes >= 0 ? '+' : ''}${diffAcoes.toFixed(2).replace('.', ',')}%`;
+      elAcoesDiff.className = `pdiff ${diffClass(diffAcoes)}`;
+    } else { elAcoesDiff.textContent = ''; }
+  }
+
+  // Pill Carteira de Dividendos
+  const elDivVal  = document.getElementById('pill-div-val');
+  const elDivLbl  = document.getElementById('pill-div-lbl');
+  const elDivDiff = document.getElementById('pill-div-diff');
+  if (elDivVal)  { elDivVal.textContent = fmtPill(retDiv); elDivVal.className = `pval ${valClass(retDiv)}`; }
+  if (elDivLbl)  elDivLbl.textContent = monthLabel;
+  if (elDivDiff) {
+    if (diffDiv !== null) {
+      elDivDiff.textContent = `${diffLabelDiv}: ${diffDiv >= 0 ? '+' : ''}${diffDiv.toFixed(2).replace('.', ',')}%`;
+      elDivDiff.className = `pdiff ${diffClass(diffDiv)}`;
+    } else { elDivDiff.textContent = ''; }
+  }
+
+  // Pill IBOVESPA (sempre BOVA11)
+  const elBovaVal = document.getElementById('pill-bova-val');
+  const elBovaLbl = document.getElementById('pill-bova-lbl');
+  if (elBovaVal) { elBovaVal.textContent = fmtPill(retBova); elBovaVal.className = `pval ${valClass(retBova)}`; }
+  if (elBovaLbl) elBovaLbl.textContent = monthLabel;
+
+  // Pill IDIV (DIVO11 — benchmark Carteira de Dividendos)
+  const elDivoVal = document.getElementById('pill-divo-val');
+  const elDivoLbl = document.getElementById('pill-divo-lbl');
+  if (elDivoVal) { elDivoVal.textContent = fmtPill(retDivo); elDivoVal.className = `pval ${valClass(retDivo)}`; }
+  if (elDivoLbl) elDivoLbl.textContent = monthLabel;
+}
+
+// ── Normaliza série histórica: 1 ponto por mês ───────────
+// Problema: brapi.dev pode retornar múltiplos registros no
+// mesmo mês com timestamps ligeiramente diferentes, causando
+// pontos duplicados no eixo X do gráfico.
+// Solução: agrupar por "YYYY-MM", manter o último fechamento
+// e normalizar o timestamp para o dia 1 do mês (UTC).
+function normalizeMonthly(rawItems, startTs) {
+  const byMonth = {};
+  rawItems.forEach(d => {
+    if (!d.close || d.date < startTs) return;
+    const monthKey = new Date(d.date * 1000).toISOString().slice(0, 7); // "2024-06"
+    // Sobrescreve: garante que fica com o registro mais recente do mês
+    if (!byMonth[monthKey] || d.date > byMonth[monthKey].origDate) {
+      byMonth[monthKey] = {
+        date: Math.floor(new Date(monthKey + '-01T00:00:00Z').getTime() / 1000), // normalizado
+        close: d.close,
+        origDate: d.date
+      };
+    }
+  });
+  return Object.values(byMonth)
+    .map(({ date, close }) => ({ date, close }))
+    .sort((a, b) => a.date - b.date);
+}
+
+// ── Layer 2: live brapi.dev API ──────────────────────────
+async function fetchFromBrapi(portfolioKey) {
+  const btn = document.getElementById('btn-fetch');
+  btn.classList.add('loading');
+  btn.textContent = '⏳ Buscando…';
+
+  const p = PORTFOLIOS[portfolioKey];
+  const allTickers = [...new Set([...p.tickers, 'BOVA11', p.benchmark || 'BOVA11'])];
+  const result = {};
+  const BATCH = 5;
+
+  for (let i = 0; i < allTickers.length; i += BATCH) {
+    const batch = allTickers.slice(i, i + BATCH);
+    const apiBatch = batch.map(dataTicker);
+    let url = `https://brapi.dev/api/quote/${[...new Set(apiBatch)].join(',')}?range=2y&interval=1mo&fundamental=false`;
+    if (brapiToken) url += `&token=${encodeURIComponent(brapiToken)}`;
+
+    try {
+      const r = await fetch(url);
+      if (!r.ok) { console.warn('Fetch fail batch:', batch, r.status); continue; }
+      const json = await r.json();
+      if (!json.results) continue;
+
+      for (let j = 0; j < batch.length; j++) {
+        const display = batch[j], apiT = apiBatch[j];
+        const item = json.results.find(x => x.symbol === apiT || x.symbol === display);
+        if (!item?.historicalDataPrice) continue;
+        const hist = normalizeMonthly(item.historicalDataPrice, START_TS);
+        if (hist.length) result[display] = hist;
+      }
+    } catch(e) { console.warn('Fetch fail:', batch, e); }
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = '🔄 Buscar Dados';
+  return Object.keys(result).length ? result : null;
+}
+
+// ── Main fetch orchestrator ──────────────────────────────
+async function fetchPortfolio(key) {
+  if (dataCache[key]) return dataCache[key];
+
+  // Layer 1: local JSON
+  await tryLoadLocalJson();
+  if (localJson) {
+    const parsed = parseLocalJson(key);
+    if (parsed) { dataCache[key] = parsed; return parsed; }
+  }
+
+  // Layer 2: live API
+  const apiResult = await fetchFromBrapi(key);
+  if (apiResult && Object.keys(apiResult).length > 0) {
+    dataCache[key] = apiResult;
+    return apiResult;
+  }
+
+  // Layer 3: error
+  showBannerError();
+  return {};
+}
+
+// ── DY fetch (local JSON → brapi → static fallback) ──────
+// dySourceMap: {ticker → 'fundamentus'|'brapi'|'estático'}
+let dySourceMap = {};
+
+async function fetchDY(tickers) {
+  // ── Verifica por ticker (não retorna cedo se há tickers novos) ──
+  // Bug anterior: `if (cache.length > 0) return cache` fazia com que
+  // ao trocar de carteira, tickers exclusivos da nova carteira ficassem
+  // sem DY porque a função retornava antes de buscá-los.
+  const needsFetch = tickers.filter(t => dyCache[t] == null);
+  if (needsFetch.length === 0) return dyCache;  // todos já no cache
+
+  // ── Camada 1: JSON local gerado pelo serve.py ──────────
+  if (localJson?.dy) {
+    const src = localJson.dy_source === 'fundamentus' ? 'fundamentus' : 'brapi';
+    needsFetch.forEach(t => {
+      const v = localJson.dy[t];
+      // Ignora 0 — provavelmente dado ausente na fonte, não DY real de 0%
+      if (v != null && v > 0) { dyCache[t] = v; dySourceMap[t] = src; }
+    });
+  }
+
+  // ── Camada 2: brapi.dev (para o que ainda falta) ───────
+  const stillMissing = needsFetch.filter(t => dyCache[t] == null);
+  if (stillMissing.length) {
+    let url = `https://brapi.dev/api/quote/${[...new Set(stillMissing.map(dataTicker))].join(',')}?fundamental=true`;
+    if (brapiToken) url += `&token=${encodeURIComponent(brapiToken)}`;
+    try {
+      const r = await fetch(url);
+      if (r.ok) {
+        const json = await r.json();
+        if (json.results) {
+          for (const item of json.results) {
+            const display = stillMissing.find(t => dataTicker(t) === item.symbol) || item.symbol;
+            const dy = item.dividendYield;
+            // Ignora 0 — brapi retorna 0 quando não tem dado, não quando DY é 0%
+            if (dy != null && dy > 0) {
+              dyCache[display] = dy > 1 ? dy : dy * 100;
+              dySourceMap[display] = 'brapi';
+            }
+          }
+        }
+      }
+    } catch(_) {}
+  }
+
+  // ── Camada 3: fallback estático ─────────────────────────
+  needsFetch.forEach(t => {
+    if (dyCache[t] == null && DY_BASE[t] != null) {
+      dyCache[t] = DY_BASE[t];
+      dySourceMap[t] = 'estático';
+    }
+  });
+
+  return dyCache;
+}
+
+// Retorna badge HTML indicando fonte do DY
+function dySourceBadge(ticker) {
+  const s = dySourceMap[ticker];
+  if (!s) return '';
+  const styles = {
+    'fundamentus': 'background:#e6fffa;color:#276749;border:1px solid #b2f5ea',
+    'brapi':       'background:#ebf8ff;color:#2b6cb0;border:1px solid #bee3f8',
+    'estático':    'background:#fffbeb;color:#975a16;border:1px solid #faf089',
+  };
+  const style = styles[s] || '';
+  return `<span title="Fonte: ${s}" style="font-size:8px;border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;${style}">${s}</span>`;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   NAVIGATION                                          ║
+// ╚══════════════════════════════════════════════════════╝
+function selectPortfolio(key) {
+  currentPortfolio = key;
+  document.getElementById('btn-acoes').classList.toggle('active', key === 'acoes');
+  document.getElementById('btn-dividendos').classList.toggle('active', key === 'dividendos');
+  renderChart(currentChart);
+}
+function selectChart(type, el) {
+  currentChart = type;
+  document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + type).classList.add('active');
+  renderChart(type);
+}
+function renderChart(t) {
+  if (t==='perfcart') renderPerfCarteira();
+  else if (t==='perf')   renderPerf();
+  else if (t==='sector') renderSector();
+  else if (t==='table')  renderTable();
+  else if (t==='risco')  renderRiscoCarteira();
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   CHART 0 — PERFORMANCE ACUMULADA PONDERADA          ║
+// ║   Retorno composto da carteira como um todo vs BOVA11 ║
+// ╚══════════════════════════════════════════════════════╝
+async function renderPerfCarteira() {
+  const L = document.getElementById('load-perfcart');
+  const W = document.getElementById('wrap-perfcart');
+  L.style.display='flex'; W.style.display='none';
+
+  const data = await fetchPortfolio(currentPortfolio);
+  const p = PORTFOLIOS[currentPortfolio];
+
+  const allDates = [...new Set(Object.values(data).flatMap(a => a.map(d=>d.date)))].sort((a,b)=>a-b);
+  if (!allDates.length) {
+    L.innerHTML=`<div class="err">⚠️ Não foi possível carregar dados. Verifique sua conexão e tente novamente.</div>`;
+    return;
+  }
+
+  // ── Retorno mensal ponderado da carteira ─────────────
+  // Usa pesos históricos do Excel (dinâmicos por mês) quando disponíveis;
+  // caso contrário, cai de volta nos pesos estáticos de PORTFOLIOS.
+  const wHist = (localJson && localJson.weights_history)
+                  ? (localJson.weights_history[currentPortfolio] || {})
+                  : {};
+
+  const monthlyWeighted = allDates.map(ts => {
+    const monthKey = new Date(ts * 1000).toISOString().slice(0, 7); // "YYYY-MM"
+    const wMonth   = wHist[monthKey] || null; // {TICKER: peso%} ou null
+
+    let wRet = 0, wSum = 0;
+    p.tickers.forEach((ticker, i) => {
+      const hist = data[ticker];
+      if (!hist) return;
+      const idx2 = hist.findIndex(d => d.date === ts);
+      if (idx2 <= 0) return;
+      const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close;
+
+      // Peso dinâmico do Excel → fallback para peso estático
+      const w = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
+      if (!w) return; // ativo não estava na carteira nesse mês
+      wRet += (w / 100) * ret;
+      wSum += w / 100;
+    });
+    return wSum > 0 ? wRet : null;
+  });
+
+  // ── Compostos acumulados (produto de (1 + r_t) - 1) ──
+  const cumCart = [];
+  let compound = 1;
+  monthlyWeighted.forEach(r => {
+    if (r === null) { cumCart.push(null); return; }
+    compound *= (1 + r);
+    cumCart.push(+((compound - 1) * 100).toFixed(2));
+  });
+
+  // ── Benchmark acumulado ───────────────────────────────
+  const benchTicker = p.benchmark || 'BOVA11';
+  const benchLabel  = benchTicker === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11 (Ibovespa)';
+  const cumBova = [];
+  const bovaHist = data[benchTicker];
+  if (bovaHist && bovaHist.length >= 2) {
+    let compBova = 1;
+    allDates.forEach(ts => {
+      const idx2 = bovaHist.findIndex(d => d.date === ts);
+      if (idx2 <= 0) { cumBova.push(null); return; }
+      const ret = (bovaHist[idx2].close - bovaHist[idx2-1].close) / bovaHist[idx2-1].close;
+      compBova *= (1 + ret);
+      cumBova.push(+((compBova - 1) * 100).toFixed(2));
+    });
+  }
+
+  // ── Ponto base 0% no mês anterior ao início da carteira ──
+  // O mês-base (maio) não tem retorno calculável (sem abril no JSON),
+  // mas exibimos 0% como ponto de largada visual no gráfico.
+  const firstCart = cumCart.findIndex(v => v !== null);
+  if (firstCart > 0) cumCart[firstCart - 1] = 0;
+  const firstBova = cumBova.findIndex(v => v !== null);
+  if (firstBova > 0) cumBova[firstBova - 1] = 0;
+
+  L.style.display='none'; W.style.display='block';
+  const labels = allDates.map(fmtMonth);
+
+  const datasets = [{
+    label: p.name,
+    data: cumCart,
+    borderColor: currentPortfolio === 'acoes' ? '#2b6cb0' : '#276749',
+    backgroundColor: currentPortfolio === 'acoes'
+      ? 'rgba(43,108,176,0.08)' : 'rgba(39,103,73,0.08)',
+    borderWidth: 3,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    tension: 0.3,
+    fill: true,
+    spanGaps: true
+  }];
+
+  if (cumBova.length) {
+    datasets.push({
+      label: benchLabel,
+      data: cumBova,
+      borderColor: '#a0aec0',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 2,
+      tension: 0.3,
+      borderDash: [6,3],
+      spanGaps: true
+    });
+  }
+
+  destroyChart('perfcart');
+  const ctx = document.getElementById('ch-perfcart').getContext('2d');
+  chartInstances['perfcart'] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        title: {
+          display: true,
+          text: `${p.name} — Performance Acumulada (%) vs ${benchLabel}`,
+          font: { size:14, weight:'bold' }, color:'#2d3748', padding:{ bottom:14 }
+        },
+        legend: { position:'bottom', labels:{ boxWidth:14, font:{ size:12 }, padding:14 } },
+        tooltip: {
+          callbacks: {
+            label: c => `${c.dataset.label}: ${c.raw != null ? c.raw + '%' : 'N/D'}`
+          }
+        }
+      },
+      scales: {
+        x: { grid:{ color:'#edf2f7' }, ticks:{ font:{ size:11 } } },
+        y: {
+          grid: { color:'#edf2f7' },
+          ticks: { callback: v => v + '%', font:{ size:11 } },
+          title: { display:true, text:'Retorno Acumulado (%)', font:{ size:11 }, color:'#718096' }
+        }
+      }
+    }
+  });
+
+  // ── Tabela de rentabilidade mensal (lâmina) ───────────
+  renderRentabilityTable(allDates, monthlyWeighted, data[benchTicker] || [], benchLabel);
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   TABELA RENTABILIDADE MENSAL (Lâmina)               ║
+// ║   Exibida abaixo do gráfico Performance Acumulada    ║
+// ╚══════════════════════════════════════════════════════╝
+function renderRentabilityTable(allDates, monthlyWeighted, bovaHist, benchLabel) {
+  benchLabel = benchLabel || 'BOVA11 (Ibovespa)';
+  // Short label for diff row: "IDIV" or "IBOV"
+  const diffLabel = benchLabel.startsWith('IDIV') ? 'IDIV' : 'IBOV';
+  const wrap = document.getElementById('rentab-table-wrap');
+  if (!wrap) return;
+
+  const p     = PORTFOLIOS[currentPortfolio];
+  const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+  // ── Monta mapa year → month(1-12) → retorno carteira ─
+  const byYear = {};
+  allDates.forEach((ts, i) => {
+    const r = monthlyWeighted[i];
+    if (r === null || r === undefined) return;
+    const d = new Date(ts * 1000);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth() + 1;   // 1-12
+    if (!byYear[y]) byYear[y] = {};
+    byYear[y][m] = r;                 // decimal, ex: 0.0249 = 2.49%
+  });
+
+  // ── Monta mapa year → month → retorno BOVA11 (decimal) ─
+  const bovaByYear = {};
+  if (bovaHist && bovaHist.length >= 2) {
+    for (let i = 1; i < bovaHist.length; i++) {
+      const prev = bovaHist[i - 1], curr = bovaHist[i];
+      if (!prev.close || !curr.close) continue;
+      const ret = (curr.close - prev.close) / prev.close;
+      const d   = new Date(curr.date * 1000);
+      const y   = d.getUTCFullYear();
+      const m   = d.getUTCMonth() + 1;
+      if (!bovaByYear[y]) bovaByYear[y] = {};
+      bovaByYear[y][m] = ret;
+    }
+  }
+
+  const years = Object.keys(byYear).map(Number).sort((a, b) => b - a);
+  if (!years.length) { wrap.innerHTML = ''; return; }
+
+  // ── Helpers de formatação ─────────────────────────────
+  function fmtPct(v) {
+    if (v === null || v === undefined) return '<span class="rent-dash">-</span>';
+    const pct = (v * 100).toFixed(2);
+    return v < -0.0001
+      ? `<span class="rent-neg">${pct}%</span>`
+      : `${pct}%`;
+  }
+
+  // ── Precalcula acumulados por ano (carteira + BOVA11) ─
+  const cumAtEndOfYear     = {};
+  const cumBovaAtEndOfYear = {};
+  let runCart = 1, runBova = 1;
+
+  years.slice().sort((a, b) => a - b).forEach(y => {
+    for (let m = 1; m <= 12; m++) {
+      const r = byYear[y]?.[m];
+      if (r !== null && r !== undefined) runCart *= (1 + r);
+      const rb = bovaByYear[y]?.[m];
+      if (rb !== null && rb !== undefined) runBova *= (1 + rb);
+    }
+    cumAtEndOfYear[y]     = runCart;
+    cumBovaAtEndOfYear[y] = runBova;
+  });
+
+  // ── Monta HTML da tabela ──────────────────────────────
+  let html = `
+    <div class="rent-title">Rentabilidade Mensal — ${p.name}</div>
+    <div class="rent-wrap">
+    <table class="rent-tbl">
+      <thead>
+        <tr>
+          <th>ANO</th>
+          <th class="col-leg-hdr"></th>
+          ${MESES.map(m => `<th>${m}</th>`).join('')}
+          <th>No ano</th>
+          <th>Acumulado</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  years.forEach((y, yi) => {
+    const months     = byYear[y]     || {};
+    const bovaMonths = bovaByYear[y] || {};
+
+    // Retorno anual composto — carteira
+    let yrCart = 1, hasCart = false;
+    for (let m = 1; m <= 12; m++) {
+      if (months[m] !== undefined) { yrCart *= (1 + months[m]); hasCart = true; }
+    }
+    const yrCartRet = hasCart ? (yrCart - 1) : null;
+
+    // Retorno anual composto — BOVA11
+    let yrBova = 1, hasBova = false;
+    for (let m = 1; m <= 12; m++) {
+      if (bovaMonths[m] !== undefined) { yrBova *= (1 + bovaMonths[m]); hasBova = true; }
+    }
+    const yrBovaRet = hasBova ? (yrBova - 1) : null;
+
+    // Acumulado até fim deste ano
+    const cumCartRet = (cumAtEndOfYear[y]     || 1) - 1;
+    const cumBovaRet = (cumBovaAtEndOfYear[y] || 1) - 1;
+
+    const sepClass = yi > 0 ? 'rent-yr-sep' : '';
+
+    // ── Helper diff: formata diferença carteira − IBOV ───
+    function fmtDiff(cart, bova) {
+      if (cart === null || cart === undefined || bova === null || bova === undefined)
+        return '<span class="rent-dash">-</span>';
+      const diff = (cart - bova) * 100;
+      const abs  = Math.abs(diff).toFixed(2);
+      if (diff > 0.005)  return `<span class="rent-pos">+${abs}%</span>`;
+      if (diff < -0.005) return `<span class="rent-neg">−${abs}%</span>`;
+      return `<span class="rent-zero">0,00%</span>`;
+    }
+
+    // Linha carteira
+    html += `<tr class="row-cart ${sepClass}">
+      <td rowspan="3" class="col-ano-label">${y}</td>
+      <td class="col-leg-cart">${p.name}</td>
+      ${MESES.map((_, mi) => {
+        const m = mi + 1;
+        return `<td>${months[m] !== undefined ? fmtPct(months[m]) : '<span class="rent-dash">-</span>'}</td>`;
+      }).join('')}
+      <td class="col-ano">${yrCartRet !== null ? fmtPct(yrCartRet) : '<span class="rent-dash">-</span>'}</td>
+      <td class="col-acum">${fmtPct(cumCartRet)}</td>
+    </tr>`;
+
+    // Linha IBOVESPA
+    html += `<tr class="row-cdi">
+      <td class="col-leg-bova">${benchLabel}</td>
+      ${MESES.map((_, mi) => {
+        const m = mi + 1;
+        return `<td>${bovaMonths[m] !== undefined ? fmtPct(bovaMonths[m]) : '<span class="rent-dash">-</span>'}</td>`;
+      }).join('')}
+      <td class="col-ano">${yrBovaRet !== null ? fmtPct(yrBovaRet) : '<span class="rent-dash">-</span>'}</td>
+      <td class="col-acum">${fmtPct(cumBovaRet)}</td>
+    </tr>`;
+
+    // Linha diferença (carteira − IBOV)
+    html += `<tr class="row-diff">
+      <td class="col-leg-diff">Δ vs ${diffLabel}</td>
+      ${MESES.map((_, mi) => {
+        const m = mi + 1;
+        const hasCart = months[m] !== undefined;
+        const hasBova = bovaMonths[m] !== undefined;
+        return `<td>${hasCart && hasBova ? fmtDiff(months[m], bovaMonths[m]) : '<span class="rent-dash">-</span>'}</td>`;
+      }).join('')}
+      <td class="col-ano">${fmtDiff(yrCartRet, yrBovaRet)}</td>
+      <td class="col-acum">${fmtDiff(cumCartRet, cumBovaRet)}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <p class="note" style="margin-top:8px">* Linha 1 = retorno mensal ponderado da carteira. Linha 2 = IBOVESPA (BOVA11). Linha 3 (Δ) = diferença carteira − IBOV: <span style="color:#276749;font-weight:700">verde = acima</span>, <span style="color:#c53030;font-weight:700">vermelho = abaixo</span>. Acumulado desde ${localJson?.start_date || 'início'}.</p>`;
+
+  wrap.innerHTML = html;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   RISCO — VOLATILIDADE ANUALIZADA + MÁXIMO DRAWDOWN  ║
+// ╚══════════════════════════════════════════════════════╝
+async function renderRiscoCarteira() {
+  const L = document.getElementById('load-risco');
+  const W = document.getElementById('wrap-risco');
+  L.style.display='flex'; W.style.display='none';
+
+  const data = await fetchPortfolio(currentPortfolio);
+  const p    = PORTFOLIOS[currentPortfolio];
+  const benchTicker = p.benchmark || 'BOVA11';
+  const benchShort  = benchTicker === 'DIVO11' ? 'IDIV' : 'IBOV';
+  const portColor   = currentPortfolio === 'acoes' ? '#2b6cb0' : '#276749';
+
+  const allDates = [...new Set(Object.values(data).flatMap(a => a.map(d=>d.date)))].sort((a,b)=>a-b);
+  if (!allDates.length) {
+    L.innerHTML=`<div class="err">⚠️ Sem dados disponíveis.</div>`; return;
+  }
+
+  const wHist    = (localJson && localJson.weights_history)
+                     ? (localJson.weights_history[currentPortfolio] || {}) : {};
+  const bovaHist = data[benchTicker] || [];
+
+  // ── Pares {month, ret} para carteira e benchmark ─────────────────────
+  const cartPairs = [], benchPairs = [];
+  allDates.forEach(ts => {
+    const monthKey = new Date(ts * 1000).toISOString().slice(0, 7);
+    const wMonth   = wHist[monthKey] || null;
+    let wRet = 0, wSum = 0;
+    p.tickers.forEach((ticker, j) => {
+      const hist = data[ticker];
+      if (!hist) return;
+      const idx2 = hist.findIndex(d => d.date === ts);
+      if (idx2 <= 0) return;
+      const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close;
+      const w   = wMonth ? (wMonth[ticker] ?? 0) : p.weights[j];
+      if (!w) return;
+      wRet += (w / 100) * ret;
+      wSum += w / 100;
+    });
+    if (wSum >= 0.5) cartPairs.push({ month: monthKey, ret: wRet });
+
+    if (bovaHist.length >= 2) {
+      const idx2 = bovaHist.findIndex(d => d.date === ts);
+      if (idx2 > 0) {
+        const ret = (bovaHist[idx2].close - bovaHist[idx2-1].close) / bovaHist[idx2-1].close;
+        benchPairs.push({ month: monthKey, ret });
+      }
+    }
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  const curYear = new Date().getFullYear().toString();
+
+  function slicePairs(pairs, period) {
+    if (period === 'all') return pairs;
+    if (period === 'ytd') return pairs.filter(x => x.month.startsWith(curYear));
+    if (period === '12m') return pairs.slice(-12);
+    if (period === '3m')  return pairs.slice(-3);
+    return pairs;
+  }
+
+  function annVol(pairs) {
+    const r = pairs.map(x => x.ret);
+    if (r.length < 2) return null;
+    const mean = r.reduce((a, b) => a + b, 0) / r.length;
+    const v    = r.reduce((a, b) => a + (b - mean) ** 2, 0) / (r.length - 1);
+    return +(Math.sqrt(v) * Math.sqrt(12) * 100).toFixed(2);
+  }
+
+  function maxDD(pairs) {
+    if (!pairs.length) return null;
+    let cum = 1, peak = 1, dd = 0;
+    for (const { ret } of pairs) {
+      cum  *= (1 + ret);
+      if (cum > peak) peak = cum;
+      const d = (cum - peak) / peak;
+      if (d < dd) dd = d;
+    }
+    return +(dd * 100).toFixed(2);
+  }
+
+  // ── Rolling 3M vol series (per month) ────────────────────────────────
+  function rollingVol(pairs, window = 3) {
+    return pairs.map((_, i) => {
+      const w = pairs.slice(Math.max(0, i - window + 1), i + 1);
+      return w.length >= 2 ? annVol(w) : null;
+    });
+  }
+
+  // ── Drawdown curve series (per month) ────────────────────────────────
+  function ddCurve(pairs) {
+    let cum = 1, peak = 1;
+    return pairs.map(({ ret }) => {
+      cum *= (1 + ret);
+      if (cum > peak) peak = cum;
+      return +((cum / peak - 1) * 100).toFixed(3);
+    });
+  }
+
+  // ── Period summary tables ─────────────────────────────────────────────
+  const periods      = ['ytd', '12m', 'all'];
+  const periodLabels = ['YTD', '12M', 'Desde Início'];
+
+  const volCart  = periods.map(per => annVol(slicePairs(cartPairs, per)));
+  const volBench = periods.map(per => annVol(slicePairs(benchPairs, per)));
+  const ddCart   = periods.map(per => maxDD(slicePairs(cartPairs, per)));
+  const ddBench  = periods.map(per => maxDD(slicePairs(benchPairs, per)));
+
+  function fmt(v, suffix = '%') {
+    return v != null ? v.toFixed(2) + suffix : '—';
+  }
+  function deltaColor(delta, invert = false) {
+    if (delta == null) return '';
+    const pos = invert ? delta < 0 : delta > 0;
+    return pos ? 'color:#276749;font-weight:600' : (delta === 0 ? '' : 'color:#c53030;font-weight:600');
+  }
+
+  function buildTable(cartVals, benchVals, invert = false) {
+    let rows = '';
+    periodLabels.forEach((lbl, i) => {
+      const c = cartVals[i], b = benchVals[i];
+      const delta = (c != null && b != null) ? +(c - b).toFixed(2) : null;
+      const sign  = delta != null ? (delta > 0 ? '+' : '') : '';
+      rows += `<tr>
+        <td style="padding:6px 10px;border-bottom:1px solid #edf2f7;font-size:12px;color:#4a5568">${lbl}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #edf2f7;font-size:12px;text-align:right">${fmt(b)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #edf2f7;font-size:12px;text-align:right">${fmt(c)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #edf2f7;font-size:12px;text-align:right;${deltaColor(delta, invert)}">${delta != null ? sign + delta.toFixed(2) + '%' : '—'}</td>
+      </tr>`;
+    });
+    return `<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+      <thead><tr style="background:#f7fafc">
+        <th style="padding:7px 10px;font-size:11px;color:#718096;text-align:left;font-weight:600;border-bottom:2px solid #e2e8f0">Período</th>
+        <th style="padding:7px 10px;font-size:11px;color:#718096;text-align:right;font-weight:600;border-bottom:2px solid #e2e8f0">${benchShort}</th>
+        <th style="padding:7px 10px;font-size:11px;color:#718096;text-align:right;font-weight:600;border-bottom:2px solid #e2e8f0">Carteira</th>
+        <th style="padding:7px 10px;font-size:11px;color:#718096;text-align:right;font-weight:600;border-bottom:2px solid #e2e8f0">Δ</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  document.getElementById('vol-table').innerHTML = buildTable(volCart, volBench);
+  document.getElementById('dd-table').innerHTML  = buildTable(ddCart,  ddBench, true);
+
+  L.style.display='none'; W.style.display='block';
+
+  // ── Rolling Vol — Line Chart ──────────────────────────────────────────
+  // Align months: use union of cart + bench months
+  const cartMonths  = cartPairs.map(x => x.month);
+  const benchMonths = benchPairs.map(x => x.month);
+  const allMonths   = [...new Set([...cartMonths, ...benchMonths])].sort();
+
+  // Build month-keyed maps for rolling vol
+  const cartVolByMonth  = {};
+  const benchVolByMonth = {};
+  const rvCart  = rollingVol(cartPairs);
+  const rvBench = rollingVol(benchPairs);
+  cartPairs.forEach((x, i)  => { cartVolByMonth[x.month]  = rvCart[i]; });
+  benchPairs.forEach((x, i) => { benchVolByMonth[x.month] = rvBench[i]; });
+
+  const volLabels    = allMonths.map(m => m.slice(0, 7));
+  const volDataCart  = allMonths.map(m => cartVolByMonth[m]  ?? null);
+  const volDataBench = allMonths.map(m => benchVolByMonth[m] ?? null);
+
+  destroyChart('vol');
+  const ctxVol = document.getElementById('ch-vol').getContext('2d');
+  chartInstances['vol'] = new Chart(ctxVol, {
+    type: 'line',
+    data: {
+      labels: volLabels,
+      datasets: [
+        {
+          label: p.name,
+          data: volDataCart,
+          borderColor: portColor,
+          backgroundColor: portColor + '22',
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: false,
+          spanGaps: true,
+        },
+        {
+          label: benchShort,
+          data: volDataBench,
+          borderColor: '#a0aec0',
+          backgroundColor: '#a0aec022',
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: false,
+          spanGaps: true,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        title: { display:true, text:'Volatilidade',
+                 font:{ size:14, weight:'bold' }, color:'#2d3748', padding:{ bottom:10 } },
+        legend: { position:'bottom', labels:{ boxWidth:12, font:{ size:12 }, padding:12 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw != null ? c.raw.toFixed(2)+'%' : 'N/D'}` } }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font:{ size:10 }, maxTicksLimit: 12,
+                   callback: (_, i) => volLabels[i] ? volLabels[i].slice(2) : '' }
+        },
+        y: {
+          grid: { color:'#edf2f7' },
+          ticks: { callback: v => v+'%', font:{ size:11 } },
+          title: { display:true, text:'Vol. Anualizada (%)', font:{ size:11 }, color:'#718096' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  // ── Drawdown Curve — Line Chart ───────────────────────────────────────
+  const ddCartByMonth  = {};
+  const ddBenchByMonth = {};
+  const dcCart  = ddCurve(cartPairs);
+  const dcBench = ddCurve(benchPairs);
+  cartPairs.forEach((x, i)  => { ddCartByMonth[x.month]  = dcCart[i]; });
+  benchPairs.forEach((x, i) => { ddBenchByMonth[x.month] = dcBench[i]; });
+
+  const ddLabels    = allMonths.map(m => m.slice(0, 7));
+  const ddDataCart  = allMonths.map(m => ddCartByMonth[m]  ?? null);
+  const ddDataBench = allMonths.map(m => ddBenchByMonth[m] ?? null);
+
+  destroyChart('dd');
+  const ctxDD = document.getElementById('ch-dd').getContext('2d');
+  chartInstances['dd'] = new Chart(ctxDD, {
+    type: 'line',
+    data: {
+      labels: ddLabels,
+      datasets: [
+        {
+          label: p.name,
+          data: ddDataCart,
+          borderColor: portColor,
+          backgroundColor: portColor + '22',
+          borderWidth: 2,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          tension: 0.2,
+          fill: true,
+          spanGaps: true,
+        },
+        {
+          label: benchShort,
+          data: ddDataBench,
+          borderColor: '#a0aec0',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [4, 3],
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          tension: 0.2,
+          fill: false,
+          spanGaps: true,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        title: { display:true, text:'Curva de Drawdown (%)',
+                 font:{ size:14, weight:'bold' }, color:'#2d3748', padding:{ bottom:10 } },
+        legend: { position:'bottom', labels:{ boxWidth:12, font:{ size:12 }, padding:12 } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw != null ? c.raw.toFixed(2)+'%' : 'N/D'}` } }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font:{ size:10 }, maxTicksLimit: 12,
+                   callback: (_, i) => ddLabels[i] ? ddLabels[i].slice(2) : '' }
+        },
+        y: {
+          grid: { color:'#edf2f7' },
+          ticks: { callback: v => v+'%', font:{ size:11 } },
+          title: { display:true, text:'Drawdown (%)', font:{ size:11 }, color:'#718096' },
+        }
+      }
+    }
+  });
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   CHART 1 — RENTABILIDADE POR AÇÃO (individual)      ║
+// ╚══════════════════════════════════════════════════════╝
+async function renderPerf() {
+  const L = document.getElementById('load-perf');
+  const W = document.getElementById('wrap-perf');
+  L.style.display='flex'; W.style.display='none';
+
+  const data = await fetchPortfolio(currentPortfolio);
+  const p = PORTFOLIOS[currentPortfolio];
+
+  const curYear = new Date().getFullYear();
+
+  const allDates = [...new Set(Object.values(data).flatMap(a => a.map(d=>d.date)))].sort((a,b)=>a-b);
+  if (!allDates.length) { L.innerHTML=`<div class="err">⚠️ Não foi possível carregar dados.</div>`; return; }
+
+  const yearDates = allDates.filter(ts => new Date(ts * 1000).getUTCFullYear() === curYear);
+  if (!yearDates.length) { L.innerHTML=`<div class="err">⚠️ Sem dados para ${curYear} ainda.</div>`; return; }
+
+  // ── Calcula retorno YTD de cada ativo (base = Dez do ano anterior) ──
+  const items = [];
+  p.tickers.forEach(ticker => {
+    const hist = data[ticker];
+    if (!hist || hist.length < 2) return;
+    const basePoint   = [...hist].reverse().find(d => new Date(d.date * 1000).getUTCFullYear() < curYear);
+    const latestInYr  = [...hist].filter(d => new Date(d.date * 1000).getUTCFullYear() === curYear).slice(-1)[0];
+    if (!basePoint || !latestInYr) return;
+    const ret = +((latestInYr.close - basePoint.close) / basePoint.close * 100).toFixed(2);
+    items.push({ ticker, label: ticker, ret, isBench: false });
+  });
+
+  // ── Benchmark YTD ──
+  const benchTkr = p.benchmark || 'BOVA11';
+  const benchLbl = benchTkr === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11';
+  let bovaYtd = null;
+  const bova = data[benchTkr];
+  if (bova && bova.length >= 2) {
+    const basePoint  = [...bova].reverse().find(d => new Date(d.date * 1000).getUTCFullYear() < curYear);
+    const latestInYr = [...bova].filter(d => new Date(d.date * 1000).getUTCFullYear() === curYear).slice(-1)[0];
+    if (basePoint && latestInYr) {
+      bovaYtd = +((latestInYr.close - basePoint.close) / basePoint.close * 100).toFixed(2);
+      items.push({ ticker: benchTkr, label: benchLbl, ret: bovaYtd, isBench: true });
+    }
+  }
+
+  if (!items.length) { L.innerHTML=`<div class="err">⚠️ Sem dados suficientes.</div>`; return; }
+
+  // Ordena do melhor para o pior
+  items.sort((a, b) => b.ret - a.ret);
+
+  // Atualiza nome da aba
+  const tabBtn = document.getElementById('tab-perf-btn');
+  if (tabBtn) tabBtn.textContent = `Rent. por Ação — ${curYear}`;
+
+  // Altura dinâmica: ~34px por barra
+  const chartHeight = Math.max(360, items.length * 34 + 80);
+  const box = document.getElementById('ch-perf').parentElement;
+  if (box) box.style.height = chartHeight + 'px';
+
+  const labels  = items.map(it => it.label);
+  const rets    = items.map(it => it.ret);
+  const bgColors = items.map(it => {
+    if (it.isBench) return 'rgba(113,128,150,0.65)';
+    return it.ret >= 0 ? 'rgba(56,161,105,0.82)' : 'rgba(229,62,62,0.78)';
+  });
+  const bdColors = items.map(it => {
+    if (it.isBench) return '#718096';
+    return it.ret >= 0 ? '#276749' : '#c53030';
+  });
+
+  L.style.display='none'; W.style.display='block';
+  destroyChart('perf');
+  const ctx = document.getElementById('ch-perf').getContext('2d');
+  chartInstances['perf'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Retorno YTD ${curYear} (%)`,
+        data: rets,
+        backgroundColor: bgColors,
+        borderColor: bdColors,
+        borderWidth: 1.5,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: {
+          display: true,
+          text: `${p.name} — Retorno por Ativo em ${curYear} (%)`,
+          font:{ size:14, weight:'bold' }, color:'#2d3748', padding:{ bottom:14 }
+        },
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color:'#edf2f7' },
+          ticks: { callback: v => v + '%', font:{ size:10 } },
+          title: { display:true, text:`Retorno Acumulado ${curYear} (%)`, font:{size:11}, color:'#718096' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font:{ size:12, weight:'600' }, color: ctx2 => {
+            const idx = ctx2.index;
+            if (!items[idx]) return '#2d3748';
+            return items[idx].isBench ? '#718096' : '#2d3748';
+          }}
+        }
+      }
+    }
+  });
+
+  // ── Cards Top3 + Maior Detrator (mês mais recente) ───
+  (function renderAtribuicaoPerf() {
+    const attrEl = document.getElementById('attr-perf');
+    if (!attrEl) return;
+    const wHistM = (localJson?.weights_history?.[currentPortfolio]) || {};
+
+    // Usa todos os dados históricos (não só o ano) para pegar o mês mais recente
+    const allDatesAll = [...new Set(Object.values(data).flatMap(a => a.map(d=>d.date)))].sort((a,b)=>a-b);
+    let lastTs = null;
+    for (let i = allDatesAll.length - 1; i >= 1; i--) {
+      // Verifica se há pelo menos um ticker com dado válido neste timestamp
+      const hasData = p.tickers.some(ticker => {
+        const hist = data[ticker];
+        if (!hist) return false;
+        const idx2 = hist.findIndex(d => d.date === allDatesAll[i]);
+        return idx2 > 0;
+      });
+      if (hasData) { lastTs = allDatesAll[i]; break; }
+    }
+    if (!lastTs) { attrEl.innerHTML = ''; return; }
+
+    const lastMonthKey = new Date(lastTs * 1000).toISOString().slice(0, 7);
+    const wMonthLast   = wHistM[lastMonthKey] || null;
+    const lastLabel    = fmtMonth(lastTs);
+
+    const contribs = [];
+    p.tickers.forEach((ticker, i) => {
+      const hist = data[ticker];
+      if (!hist) return;
+      const idx2 = hist.findIndex(d => d.date === lastTs);
+      if (idx2 <= 0) return;
+      const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close * 100;
+      const w   = wMonthLast ? (wMonthLast[ticker] ?? 0) : p.weights[i];
+      if (!w) return;
+      contribs.push({ ticker, ret: +ret.toFixed(2), peso: w, contrib: +((w/100)*ret).toFixed(3) });
+    });
+    if (!contribs.length) { attrEl.innerHTML = ''; return; }
+
+    contribs.sort((a, b) => b.contrib - a.contrib);
+
+    // Apenas positivos nos cards de destaque
+    const top3pos = contribs.filter(c => c.contrib > 0).slice(0, 3);
+    // Pior: menor contribuição (negativa)
+    const pior = contribs[contribs.length - 1];
+    const piorIsNeg = pior && pior.contrib < 0;
+
+    // Nada a mostrar se não há positivos nem negativos relevantes
+    if (!top3pos.length && !piorIsNeg) { attrEl.innerHTML = ''; return; }
+
+    const medals = ['🥇 1º lugar', '🥈 2º lugar', '🥉 3º lugar'];
+    const mkCard = (item, rank, isNeg) => {
+      const cls   = isNeg ? 'neg' : 'pos';
+      const sign  = item.ret >= 0 ? '+' : '';
+      const csign = item.contrib >= 0 ? '+' : '';
+      return `<div class="attr-card ${cls}">
+        <div class="attr-rank">${rank}</div>
+        <div class="attr-ticker">${item.ticker}</div>
+        <div class="attr-ret ${cls}">${sign}${item.ret.toFixed(1)}%</div>
+        <div class="attr-detail">Peso: ${item.peso}%</div>
+        <div class="attr-contrib ${cls}">${csign}${item.contrib.toFixed(2)} pp</div>
+      </div>`;
+    };
+
+    const posCards  = top3pos.map((item, i) => mkCard(item, medals[i], false)).join('');
+    const piorCard  = piorIsNeg ? mkCard(pior, '📉 Maior detrator', true) : '';
+
+    attrEl.innerHTML = `
+      <div class="attr-section">
+        <div class="attr-label">Maiores contribuições — ${lastLabel}</div>
+        <div class="attr-row">${posCards}${piorCard}</div>
+      </div>`;
+  })();
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   CHART 3 — COMPOSIÇÃO POR SETOR                     ║
+// ╚══════════════════════════════════════════════════════╝
+function renderSector() {
+  const p = PORTFOLIOS[currentPortfolio];
+  const map = {};
+  p.tickers.forEach((t,i) => { map[p.sectors[i]] = (map[p.sectors[i]]||0)+p.weights[i]; });
+  const sectors = Object.keys(map).sort((a,b)=>map[b]-map[a]);
+  const values  = sectors.map(s=>map[s]);
+  const bgClrs  = sectors.map(s=>SECTOR_COLORS[s]||'#718096');
+
+  destroyChart('sector');
+  const ctx = document.getElementById('ch-sector').getContext('2d');
+  chartInstances['sector'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels:sectors, datasets:[{ data:values, backgroundColor:bgClrs, borderWidth:2, borderColor:'#fff', hoverOffset:10 }] },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        title:{ display:true, text:`${p.name} — Alocação por Setor`, font:{size:14,weight:'bold'}, color:'#2d3748', padding:{bottom:12} },
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label: c=>`${c.label}: ${c.raw}%` } }
+      }
+    }
+  });
+
+  const leg = document.getElementById('sector-leg');
+  leg.innerHTML = `<div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:14px">${p.name}</div>` +
+    sectors.map(s=>`
+      <div class="s-row">
+        <div class="s-dot" style="background:${SECTOR_COLORS[s]||'#718096'}"></div>
+        <div class="s-name">${s}</div>
+        <div class="s-pct" style="color:${SECTOR_COLORS[s]||'#718096'}">${map[s]}%</div>
+      </div>`).join('') +
+    `<div style="margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:12px;color:#718096">
+      Total: <strong>100%</strong></div>`;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   TABLE + DY                                          ║
+// ╚══════════════════════════════════════════════════════╝
+
+async function renderTable() {
+  const p  = PORTFOLIOS[currentPortfolio];
+  const dy = await fetchDY(p.tickers);
+
+  const rows = p.tickers.map((t, i) => {
+    const b       = BADGE_CLASS[p.sectors[i]] || 'b-fin';
+    const dyV     = dy[t];
+    const dyStr   = dyV != null ? `${dyV.toFixed(1)}%` : 'N/D';
+    const dyClass = dyV != null && dyV >= 5 ? 'dy-val' : dyV != null && dyV < 3 ? 'dy-low' : '';
+    return `<tr>
+      <td><strong>${t}</strong></td>
+      <td><span class="badge ${b}">${p.sectors[i]}</span></td>
+      <td style="text-align:center;font-weight:600">${p.weights[i]}%</td>
+      <td style="text-align:center"><span class="${dyClass}">${dyStr}</span></td>
+      <td style="text-align:center"><span style="background:#e2e8f0;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">D+2</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tbl-container').innerHTML = `
+    <p style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:16px">${p.name} — Ativos da Carteira</p>
+    <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>Ativo</th>
+        <th>Setor</th>
+        <th style="text-align:center">Peso</th>
+        <th style="text-align:center">DY <span style="font-weight:400">(12m)</span></th>
+        <th style="text-align:center">Liquidez</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:#ebf8ff;font-weight:700">
+        <td colspan="2" style="color:#2b6cb0">TOTAL</td>
+        <td style="text-align:center;color:#2b6cb0">100%</td>
+        <td colspan="2"></td>
+      </tr></tfoot>
+    </table>
+    </div>
+    <p class="note">DY = Dividend Yield dos últimos 12 meses (indicativo). Fontes: Fundamentus, brapi.dev.</p>`;
+}
+
+function renderMeto() {
+  document.getElementById('meto-content').innerHTML = `
+  <div class="meto-section">
+    <h3>🏗 Arquitetura — Como os dados são puxados</h3>
+    <div class="info-box">
+      Este dashboard usa a API <strong>brapi.dev</strong> — uma API pública gratuita que disponibiliza cotações
+      históricas da B3 (Bolsa Brasileira), dados fundamentalistas e DY. Funciona diretamente do navegador
+      (sem servidor próprio), sem necessidade de chave de API para uso básico.
+    </div>
+    <p>Fluxo de dados:</p>
+    <div class="code-block"><span class="cm"># Fluxo profissional de captação de dados</span>
+
+<span class="fn">1. Seleção de período</span>  ─→  Data início + Data fim (Unix timestamp)
+<span class="fn">2. Alias resolution</span>    ─→  Ticker portfólio → Ticker base de dados
+<span class="fn">3. Batch API call</span>      ─→  brapi.dev (até 5 tickers por requisição)
+<span class="fn">4. Filtragem</span>           ─→  historicalDataPrice onde date >= START_TS
+<span class="fn">5. Cálculo</span>             ─→  Retorno acumulado / mensal / ponderado
+<span class="fn">6. Cache</span>               ─→  Dados mantidos em memória (limpado no refresh)</div>
+    <p><strong>Endpoint utilizado:</strong></p>
+    <div class="code-block">GET https://brapi.dev/api/quote/{<span class="fn">TICKERS</span>}?range=<span class="str">2y</span>&interval=<span class="str">1mo</span>&fundamental=<span class="str">true</span>
+
+<span class="cm"># Parâmetros:</span>
+<span class="kw">range</span>      = período: 1mo | 3mo | 6mo | 1y | 2y | 5y
+<span class="kw">interval</span>  = granularidade: 1d (diário) | 1wk (semanal) | 1mo (mensal)
+<span class="kw">fundamental</span> = true → retorna DY, P/L, P/VP etc. (mais lento)</div>
+  </div>
+
+  <div class="meto-section">
+    <h3>🔁 Mapeamento de Tickers (Aliases)</h3>
+    <p>Quando uma empresa passa por renomeação ou rebranding, o ticker muda na B3. No entanto,
+    as bases de dados históricas (brapi.dev, Yahoo Finance, Bloomberg) muitas vezes
+    continuam indexando os dados pelo ticker <strong>antigo</strong>. Por isso mantemos uma tabela de aliases:</p>
+    <table class="alias-table">
+      <thead><tr><th>Ticker no Portfólio</th><th>Ticker na Base de Dados</th><th>Empresa</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag-new">EMBJ3</span></td><td><span class="tag-old">EMBR3</span></td><td>Embraer S.A.</td><td>Ticker renomeado — dados históricos ainda em EMBR3</td></tr>
+        <tr><td><span class="tag-new">AXIA3</span></td><td><span class="tag-old">ELET3</span></td><td>Eletrobras PN</td><td>Renomeado pós-privatização — base ainda usa ELET3</td></tr>
+        <tr><td><span class="tag-new">AXIA6</span></td><td><span class="tag-old">ELET6</span></td><td>Eletrobras PNB</td><td>Idem — base ainda usa ELET6</td></tr>
+      </tbody>
+    </table>
+    <div class="warn-box">
+      ⚠️ <strong>Atenção:</strong> Ao usar outros provedores (Yahoo Finance, Economática, Bloomberg),
+      verifique se os dados históricos já foram migrados para o novo ticker antes de consultar.
+      A regra geral é: <em>se não houver dados com o ticker novo, tente o antigo</em>.
+    </div>
+  </div>
+
+  <div class="meto-section">
+    <h3>📐 Fórmulas de Performance</h3>
+    <div class="code-block"><span class="cm"># Retorno Acumulado por ativo (base = primeiro fechamento do período)</span>
+<span class="fn">retorno_acumulado</span> = (preco_fechamento / preco_base - 1) × 100
+
+<span class="cm"># Retorno Mensal por ativo</span>
+<span class="fn">retorno_mensal</span> = (fechamento_mes_t / fechamento_mes_t-1 - 1) × 100
+
+<span class="cm"># Retorno Ponderado da Carteira (mensal)</span>
+<span class="fn">retorno_carteira</span> = Σ (peso_i × retorno_mensal_i)
+  <span class="cm">onde peso_i = alocação % do ativo i na carteira</span>
+
+<span class="cm"># Dividend Yield (12 meses)</span>
+<span class="fn">DY</span> = (total_dividendos_12m / preco_atual) × 100</div>
+    <p>Os preços utilizados são de <strong>fechamento ajustado</strong> (adjusted close) quando disponível,
+    o que já incorpora o efeito de splits, bonificações e dividendos na série histórica.</p>
+  </div>
+
+  <div class="meto-section">
+    <h3>🐍 Script Python — Pipeline Profissional</h3>
+    <p>Para automação, integração com Excel/banco de dados ou agendamento, use o arquivo
+    <code style="background:#edf2f7;padding:2px 6px;border-radius:3px;font-size:12px">carteiras_pipeline.py</code>
+    incluído neste pacote. Ele implementa o mesmo fluxo acima com cache em CSV:</p>
+    <div class="code-block"><span class="cm"># Exemplo de uso do script profissional</span>
+<span class="kw">python3</span> carteiras_pipeline.py
+
+<span class="cm"># Com datas customizadas:</span>
+<span class="kw">python3</span> carteiras_pipeline.py <span class="str">--inicio 2024-06-01</span> <span class="str">--fim 2026-01-31</span>
+
+<span class="cm"># Saída: CSV com todas as cotações mensais e métricas calculadas</span>
+<span class="fn">outputs/cotacoes_mensais.csv</span>
+<span class="fn">outputs/performance_acumulada.csv</span>
+<span class="fn">outputs/retornos_mensais.csv</span></div>
+  </div>
+
+  <div class="meto-section">
+    <h3>📊 Dividend Yield — Fonte e Atualização</h3>
+    <p>O DY exibido na aba <strong>Tabela + DY</strong> é obtido de dois lugares (em ordem de prioridade):</p>
+    <ul>
+      <li><strong>brapi.dev</strong> — campo <code>dividendYield</code> do endpoint fundamental (trailing 12m)</li>
+      <li><strong>Base estática</strong> — valores de referência internos (fallback quando API indisponível)</li>
+    </ul>
+    <div class="warn-box">O DY da Petrobras (PETR4) pode variar significativamente dependendo da
+    política de dividendos vigente. Em 2024, oscilou entre 8% e 18%. Sempre conferir com a fonte oficial.</div>
+  </div>`;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║   INIT                                                ║
+// ╚══════════════════════════════════════════════════════╝
+
+// Atualiza aba "Rentabilidade por Ação" com o ano vigente
+(function() {
+  const btn = document.getElementById('tab-perf-btn');
+  if (btn) btn.textContent = `Rent. por Ação — ${new Date().getFullYear()}`;
+})();
+
+
+// ── Exportar Factsheet PDF ───────────────────────────────────
+// Chama o endpoint /lamina/<portfolio> do serve.py que gera o PDF
+// on-demand via Python (reportlab + matplotlib) e faz download.
+async function exportarPDF() {
+  const btn  = document.getElementById('btn-pdf');
+  const icon = document.getElementById('pdf-btn-icon');
+  btn.classList.add('loading');
+  icon.textContent = '⏳';
+
+  const url = `/lamina/${currentPortfolio}`;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      const txt = await resp.text();
+      alert(`Erro ao gerar PDF: ${resp.status} — ${txt}\n\nVerifique se o serve.py está rodando.`);
+      return;
+    }
+    const blob = await resp.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const p = PORTFOLIOS[currentPortfolio];
+    const mes = _endMonth.replace('-', '-');
+    a.href = objUrl;
+    a.download = `factsheet_${currentPortfolio}_${mes}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(objUrl); a.remove(); }, 2000);
+  } catch (e) {
+    alert(`Erro de conexão: ${e.message}\n\nVerifique se o serve.py está rodando na porta correta.`);
+  } finally {
+    btn.classList.remove('loading');
+    icon.textContent = '⬇';
+  }
+}
+
+renderChart('perfcart');
+// Pre-render static charts
+setTimeout(() => { renderSector(); renderTable(); }, 100);
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+# Carteiras Temáticas — dependências
+requests>=2.31
+yfinance>=0.2.36
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+Pillow>=10.0
+reportlab>=4.0
+openpyxl>=3.1
+fundamentus>=0.6
