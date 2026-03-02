@@ -796,6 +796,11 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         """Intercepta /lamina/<portfolio> para gerar o PDF on-demand."""
         path = self.path.split('?')[0].rstrip('/')
+        if path == '' or path == '/':
+            self.send_response(302)
+            self.send_header('Location', '/dashboard_carteiras_v2.html')
+            self.end_headers()
+            return
         if path.startswith('/lamina/'):
             portfolio_key = path.split('/')[-1]   # 'acoes' ou 'dividendos'
             if portfolio_key not in ('acoes', 'dividendos'):
