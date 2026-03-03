@@ -58,6 +58,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 @keyframes spin{to{transform:rotate(360deg)}}
 .err{background:#fff5f5;border:1px solid #fed7d7;color:#c53030;padding:14px 18px;border-radius:8px;font-size:13px;margin:12px}
 .note{font-size:11px;color:#a0aec0;margin-top:12px;font-style:italic}
+.perf-subtabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #e2e8f0}
+.pstab{padding:7px 16px;border:none;background:none;cursor:pointer;font-size:12px;font-weight:500;color:#718096;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s;border-radius:6px 6px 0 0}
+.pstab.active{color:#2c5282;border-bottom-color:#2c5282;font-weight:700;background:#f0f4fc}
+.pstab:hover:not(.active){color:#2c5282;background:#f7faff}
 
 /* ── TABLE ── */
 .tbl-wrap{overflow-x:auto}
@@ -253,8 +257,18 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   <div id="panel-perf" class="panel">
     <div id="load-perf" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
     <div id="wrap-perf" style="display:none">
-      <div class="chart-box"><canvas id="ch-perf"></canvas></div>
-      <p class="note" id="note-perf">* Retorno % acumulado de cada ativo no ano vigente (base = fechamento de Dez do ano anterior, preço mais recente do dia). Barra cinza = benchmark.</p>
+      <!-- Sub-abas YTD / Mês anterior -->
+      <div class="perf-subtabs">
+        <button class="pstab active" id="pstab-ytd" onclick="switchPerfTab('ytd',this)">YTD</button>
+        <button class="pstab" id="pstab-mes" onclick="switchPerfTab('mes',this)">Mês ant.</button>
+      </div>
+      <div id="perf-ytd-panel">
+        <div class="chart-box"><canvas id="ch-perf"></canvas></div>
+      </div>
+      <div id="perf-mes-panel" style="display:none">
+        <div class="chart-box" id="ch-perf-mes-box"><canvas id="ch-perf-mes"></canvas></div>
+      </div>
+      <p class="note" id="note-perf">* YTD: retorno acumulado desde Dez do ano anterior, preço do último dia disponível. Mês: variação no mês anterior completo. Barra cinza = benchmark.</p>
       <div id="attr-perf"></div>
     </div>
   </div>
@@ -843,6 +857,13 @@ function selectPortfolio(key) {
   document.getElementById('btn-dividendos').classList.toggle('active', key === 'dividendos');
   renderChart(currentChart);
 }
+function switchPerfTab(tab, btn) {
+  document.querySelectorAll('.pstab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('perf-ytd-panel').style.display = tab === 'ytd' ? 'block' : 'none';
+  document.getElementById('perf-mes-panel').style.display = tab === 'mes' ? 'block' : 'none';
+}
+
 function selectChart(type, el) {
   currentChart = type;
   document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
@@ -1700,6 +1721,100 @@ async function renderPerf() {
       }
     }
   });
+
+  // ── Gráfico do mês anterior ──────────────────────────
+  (function renderMesAnterior() {
+    const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const now = new Date();
+    // Mês anterior completo (ex: estamos em Mar → mês anterior = Fev)
+    const lcMonthIdx = now.getMonth() === 0 ? 11 : now.getMonth() - 1; // 0-indexed
+    const lcYear     = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    const lcMonthStr = `${lcYear}-${String(lcMonthIdx + 1).padStart(2,'0')}`;
+    const baseMonthIdx = lcMonthIdx === 0 ? 11 : lcMonthIdx - 1;
+    const baseYear     = lcMonthIdx === 0 ? lcYear - 1 : lcYear;
+    const baseMonthStr = `${baseYear}-${String(baseMonthIdx + 1).padStart(2,'0')}`;
+    const mesLabel = `${MONTHS_SHORT[lcMonthIdx]}/${String(lcYear).slice(2)}`;
+
+    // Atualiza label da sub-aba
+    const pstabMes = document.getElementById('pstab-mes');
+    if (pstabMes) pstabMes.textContent = mesLabel;
+
+    // Último preço diário de um mês (ou null)
+    function lastDailyOfMonth(ticker, monthStr) {
+      const pm = (dailyPricesPerf || {})[ticker] || {};
+      const dates = Object.keys(pm).filter(d => d.startsWith(monthStr)).sort();
+      return dates.length ? pm[dates[dates.length - 1]] : null;
+    }
+    // Fechamento mensal (fallback)
+    function monthlyClose(ticker, monthStr) {
+      const hist = data[ticker];
+      if (!hist) return null;
+      const pt = hist.find(d => new Date(d.date * 1000).toISOString().slice(0,7) === monthStr);
+      return pt ? pt.close : null;
+    }
+
+    const itemsMes = [];
+    p.tickers.forEach(ticker => {
+      let base   = hasDailyPerf ? lastDailyOfMonth(ticker, baseMonthStr) : null;
+      let latest = hasDailyPerf ? lastDailyOfMonth(ticker, lcMonthStr)   : null;
+      if (!base || !latest) { base = monthlyClose(ticker, baseMonthStr); latest = monthlyClose(ticker, lcMonthStr); }
+      if (!base || !latest) return;
+      itemsMes.push({ label: ticker, ret: +((latest - base) / base * 100).toFixed(2), isBench: false });
+    });
+
+    // Benchmark do mês
+    {
+      let base   = hasDailyPerf ? lastDailyOfMonth(benchTkr, baseMonthStr) : null;
+      let latest = hasDailyPerf ? lastDailyOfMonth(benchTkr, lcMonthStr)   : null;
+      if (!base || !latest) { base = monthlyClose(benchTkr, baseMonthStr); latest = monthlyClose(benchTkr, lcMonthStr); }
+      if (base && latest) itemsMes.push({ label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), isBench: true });
+    }
+
+    if (!itemsMes.length) return;
+    itemsMes.sort((a, b) => b.ret - a.ret);
+
+    const hMes = Math.max(360, itemsMes.length * 34 + 80);
+    const boxMes = document.getElementById('ch-perf-mes-box');
+    if (boxMes) boxMes.style.height = hMes + 'px';
+
+    destroyChart('perf-mes');
+    const ctxMes = document.getElementById('ch-perf-mes').getContext('2d');
+    chartInstances['perf-mes'] = new Chart(ctxMes, {
+      type: 'bar',
+      data: {
+        labels: itemsMes.map(it => it.label),
+        datasets: [{
+          label: `Retorno ${mesLabel} (%)`,
+          data: itemsMes.map(it => it.ret),
+          backgroundColor: itemsMes.map(it => it.isBench ? 'rgba(113,128,150,0.65)' : it.ret >= 0 ? 'rgba(56,161,105,0.82)' : 'rgba(229,62,62,0.78)'),
+          borderColor:     itemsMes.map(it => it.isBench ? '#718096'                 : it.ret >= 0 ? '#276749'              : '#c53030'),
+          borderWidth: 1.5, borderRadius: 4, borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {
+          title: { display:true, text:`${p.name} — Retorno por Ativo em ${mesLabel} (%)`, font:{size:14,weight:'bold'}, color:'#2d3748', padding:{bottom:14} },
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%` } }
+        },
+        scales: {
+          x: {
+            grid: { color:'#edf2f7' },
+            ticks: { callback: v => v + '%', font:{size:10} },
+            title: { display:true, text:`Retorno ${mesLabel} (%)`, font:{size:11}, color:'#718096' }
+          },
+          y: {
+            grid: { display:false },
+            ticks: { font:{size:12,weight:'600'}, color: ctx2 => {
+              const idx = ctx2.index;
+              return (!itemsMes[idx] || itemsMes[idx].isBench) ? '#718096' : '#2d3748';
+            }}
+          }
+        }
+      }
+    });
+  })();
 
   // ── Cards Top3 + Maior Detrator (mês mais recente) ───
   (function renderAtribuicaoPerf() {
