@@ -925,36 +925,62 @@ async function renderPerfCarteira() {
         return `${day}/${m}/${y}`;
       });
 
-      // Forward-fill: usa o último preço conhecido quando não há negociação
-      const lastKnown = {};
+      // ── Composição DIÁRIA: retorno de cada dia vs dia anterior ──
+      // Mesmo método do cálculo mensal, mas com granularidade diária.
+      // Assim os pesos históricos são aplicados corretamente a cada período.
+      const lastKnown    = {};  // último preço conhecido (forward-fill)
+      const prevPrices   = {};  // preço do dia anterior (para calcular retorno)
+      let dailyCompound  = 1.0;
+
       chartCart = useDates.map((dateStr, idx) => {
-        const month = dateStr.slice(0, 7);
+        const month  = dateStr.slice(0, 7);
         const wMonth = wHist[month] || null;
-        let portVal = 0, wSum = 0;
-        p.tickers.forEach((ticker, i) => {
+
+        // Atualiza preços conhecidos (forward-fill)
+        p.tickers.forEach(ticker => {
           const pm = dailyPrices[ticker] || {};
           if (pm[dateStr] != null) lastKnown[ticker] = pm[dateStr];
+        });
+
+        if (idx === 0) {
+          // Inicializa preços de referência do dia anterior
+          p.tickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
+          return 0;
+        }
+
+        // Retorno ponderado do dia vs dia anterior
+        let wRet = 0;
+        p.tickers.forEach((ticker, i) => {
           const pToday = lastKnown[ticker];
-          const pBase  = pm[globalBase] ?? Object.entries(pm).find(([k]) => k >= globalBase)?.[1];
-          if (!pToday || !pBase) return;
+          const pPrev  = prevPrices[ticker];
+          if (!pToday || !pPrev || pPrev === 0) return;
+          const dailyRet = (pToday - pPrev) / pPrev;
           const w = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
           if (!w) return;
-          portVal += (w / 100) * (pToday / pBase);
-          wSum += w / 100;
+          wRet += (w / 100) * dailyRet;
         });
-        if (idx === 0) return 0;
-        return wSum > 0 ? +((portVal / wSum - 1) * 100).toFixed(2) : null;
+
+        // Avança os preços de referência
+        p.tickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
+
+        dailyCompound *= (1 + wRet);
+        return +((dailyCompound - 1) * 100).toFixed(2);
       });
 
-      // Benchmark diário
+      // Benchmark: mesmo método de composição diária
       const bpm = dailyPrices[benchTicker] || {};
-      const benchBase = bpm[globalBase] ?? Object.entries(bpm).find(([k]) => k >= globalBase)?.[1];
-      let lastBench = null;
+      let lastBenchPrice = null;
+      let benchCompound  = 1.0;
       chartBench = useDates.map((dateStr, idx) => {
-        if (bpm[dateStr] != null) lastBench = bpm[dateStr];
-        if (!lastBench || !benchBase) return null;
-        if (idx === 0) return 0;
-        return +((lastBench / benchBase - 1) * 100).toFixed(2);
+        const newPrice = bpm[dateStr];
+        if (newPrice != null) {
+          if (idx === 0) { lastBenchPrice = newPrice; return 0; }
+          if (lastBenchPrice != null && lastBenchPrice !== 0) {
+            benchCompound *= (1 + (newPrice - lastBenchPrice) / lastBenchPrice);
+          }
+          lastBenchPrice = newPrice;
+        } else if (idx === 0) { return 0; }
+        return +((benchCompound - 1) * 100).toFixed(2);
       });
     }
   }
