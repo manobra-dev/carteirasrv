@@ -356,6 +356,110 @@ class DataFetcher:
 
         return prices
 
+    # ── Cotações DIÁRIAS via yfinance ─────────────────────
+
+    def fetch_prices_daily_yfinance(
+        self, display_tickers: list[str], start_dt: str
+    ) -> dict[str, dict]:
+        """
+        Busca preços DIÁRIOS ajustados via yfinance.
+        Retorna {display_ticker: {"YYYY-MM-DD": adjusted_close, ...}}.
+        Usado apenas para os gráficos de rentabilidade acumulada (linha mais suave).
+        """
+        yf = self._ensure_yfinance()
+        if yf is None:
+            return {}
+
+        prices: dict[str, dict] = {}
+
+        stitch_set = {t for t in display_tickers if t in TICKER_STITCH}
+        regular    = [t for t in display_tickers if t not in stitch_set]
+
+        yf_to_disp: dict[str, list[str]] = {}
+        for t in regular:
+            sym = self._yf_symbol(t)
+            yf_to_disp.setdefault(sym, []).append(t)
+
+        yf_symbols = list(yf_to_disp.keys())
+        if yf_symbols:
+            print(f"    📥  yfinance diário: {len(yf_symbols)} tickers…")
+            try:
+                import pandas as pd
+                raw = yf.download(
+                    yf_symbols, start=start_dt, interval="1d",
+                    auto_adjust=True, progress=False, group_by="ticker",
+                )
+                if raw.empty:
+                    raise ValueError("DataFrame vazio")
+
+                for sym, disp_list in yf_to_disp.items():
+                    try:
+                        if len(yf_symbols) > 1:
+                            col = (sym, "Close") if (sym, "Close") in raw.columns else None
+                            series = raw[col] if col else raw["Close"].get(sym)
+                        else:
+                            series = raw["Close"]
+                        if series is None or (hasattr(series, "empty") and series.empty):
+                            raise ValueError("série vazia")
+                        series = series.dropna()
+                        daily = {
+                            idx.strftime("%Y-%m-%d"): round(float(v), 4)
+                            for idx, v in series.items()
+                            if not pd.isna(v)
+                        }
+                        if daily:
+                            for t in disp_list:
+                                prices[t] = daily
+                            keys = sorted(daily)
+                            print(f"    ✓  {disp_list[0]:8s} ({sym:16s}): "
+                                  f"{len(daily)} dias [{keys[0]}→{keys[-1]}]")
+                        else:
+                            print(f"    ⚠  {sym}: sem dados diários")
+                    except Exception as e:
+                        print(f"    ⚠  {sym}: {e}")
+            except Exception as e:
+                print(f"    ⚠  yfinance diário batch falhou: {e}")
+
+        # ── Tickers com troca de código (stitch diário) ───
+        for disp_t in stitch_set:
+            cfg     = TICKER_STITCH[disp_t]
+            old_sym = cfg["old"] + ".SA"
+            new_sym = cfg["new"] + ".SA"
+            cutoff  = cfg["cutoff"]   # "YYYY-MM"
+            print(f"\n  ↔  Costurando diário {disp_t}: {old_sym}+{new_sym}")
+            merged: dict[str, float] = {}
+            try:
+                import pandas as pd
+                old_raw = yf.download(old_sym, start=start_dt, interval="1d",
+                                      auto_adjust=True, progress=False)
+                if not old_raw.empty:
+                    for idx, v in old_raw["Close"].dropna().items():
+                        label = idx.strftime("%Y-%m-%d")
+                        if label[:7] < cutoff and not pd.isna(v):
+                            merged[label] = round(float(v), 4)
+            except Exception as e:
+                print(f"    ⚠  {old_sym}: {e}")
+            try:
+                import pandas as pd
+                new_raw = yf.download(new_sym, start=start_dt, interval="1d",
+                                      auto_adjust=True, progress=False)
+                if not new_raw.empty:
+                    for idx, v in new_raw["Close"].dropna().items():
+                        label = idx.strftime("%Y-%m-%d")
+                        if label[:7] >= cutoff and not pd.isna(v):
+                            merged[label] = round(float(v), 4)
+            except Exception as e:
+                print(f"    ⚠  {new_sym}: {e}")
+
+            if merged:
+                prices[disp_t] = merged
+                keys = sorted(merged)
+                print(f"    ✓  {disp_t} diário costurado: {len(merged)} dias [{keys[0]}→{keys[-1]}]")
+            else:
+                print(f"    ⚠  {disp_t}: sem dados diários após costura")
+
+        return prices
+
     # ── Preços: yfinance (total return) → brapi (price return) ──
 
     def fetch_prices(self, display_tickers: list[str], start_ts: int,
@@ -747,6 +851,16 @@ def build_dashboard_json(
 
     prices = fetcher.fetch_prices(all_display_tickers, start_ts, use_yfinance=use_yfinance)
 
+    # ── Cotações diárias (para gráficos de rentabilidade acumulada) ──
+    prices_daily: dict = {}
+    if use_yfinance:
+        print(f"\n{'─'*54}")
+        print(f"  Buscando cotações DIÁRIAS ({len(all_display_tickers)} ativos)…")
+        print(f"{'─'*54}")
+        prices_daily = fetcher.fetch_prices_daily_yfinance(
+            all_display_tickers, fetch_start.strftime("%Y-%m-%d")
+        )
+
     print(f"\n{'─'*54}")
     print("  Buscando Dividend Yield…")
     dy_source = "Fundamentus → brapi.dev → fallback" if use_fundamentus else "brapi.dev → fallback"
@@ -775,6 +889,7 @@ def build_dashboard_json(
         "start_date":      start_date.strftime("%Y-%m"),
         "tickers_found":   sorted(prices.keys()),
         "prices":          prices,
+        "prices_daily":    prices_daily,
         "dy":              {k: v for k, v in dy.items() if v is not None},
         "dy_source":       "fundamentus" if use_fundamentus else "brapi",
         "price_source":    "yfinance_total_return" if use_yfinance else "brapi_price_only",
