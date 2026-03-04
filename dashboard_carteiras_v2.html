@@ -77,6 +77,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 .b-san{background:#b2f5ea;color:#234e52}.b-idx{background:#e9d8fd;color:#553c9a}
 .b-seg{background:#fed7e2;color:#97266d}.b-pet{background:#e2e8f0;color:#4a5568}
 .b-avi{background:#c6f6d5;color:#1a4731}.b-sid{background:#e2e8f0;color:#2d3748}.b-ele{background:#e6f7ff;color:#08519c}
+.b-sau{background:#d1fae5;color:#065f46}.b-sho{background:#fef3c7;color:#92400e}.b-out{background:#f3f4f6;color:#4b5563}
 .alias-chip{display:inline-block;background:#fffbeb;border:1px solid #f6e05e;color:#744210;border-radius:3px;font-size:9px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 .dy-val{font-weight:700;color:#276749}.dy-low{color:#c05621}
 
@@ -408,14 +409,16 @@ const SECTOR_COLORS = {
   'Aviação':'#276749','Indústria':'#553c9a','Siderurgia':'#4a5568',
   'Commodities':'#9c4221','Mineração':'#b7791f','Agroindústria':'#2f855a',
   'Saneamento':'#2c7a7b','Índices':'#805ad5','Índice':'#805ad5',
-  'Seguros':'#b83280','Petroquímica':'#744210','Petróleo & Gás':'#975a16'
+  'Seguros':'#b83280','Petroquímica':'#744210','Petróleo & Gás':'#975a16',
+  'Saúde':'#065f46','Shoppings':'#92400e','Moda':'#97266d','Outros':'#4b5563'
 };
 const BADGE_CLASS = {
   'Financeiro':'b-fin','Energia':'b-ene','Energia Elétrica':'b-ele',
   'Aviação':'b-avi','Indústria':'b-ind','Siderurgia':'b-sid',
   'Commodities':'b-com','Mineração':'b-min','Agroindústria':'b-agro',
   'Saneamento':'b-san','Índices':'b-idx','Índice':'b-idx',
-  'Seguros':'b-seg','Petroquímica':'b-pet','Petróleo & Gás':'b-pet'
+  'Seguros':'b-seg','Petroquímica':'b-pet','Petróleo & Gás':'b-pet',
+  'Saúde':'b-sau','Shoppings':'b-sho','Moda':'b-seg','Outros':'b-out'
 };
 const LINE_COLORS = [
   '#2b6cb0','#c05621','#276749','#553c9a','#b7791f','#2c7a7b',
@@ -593,10 +596,76 @@ async function tryLoadLocalJson() {
         END_TS = Math.floor(new Date(_endMonth + '-28T00:00:00Z').getTime() / 1000);
       }
     }
+    // Reconstrói PORTFOLIOS dinamicamente com base no weights_history do Excel
+    updatePortfoliosFromJson();
     showBannerOk(`Dados locais carregados (dashboard_data.json gerado em ${localJson.generated_at || '?'}).`);
     // Atualiza pills do cabeçalho com retornos acumulados reais
     setTimeout(updateHeaderPills, 0);
   } catch(_) { /* silently fall through to Layer 2 */ }
+}
+
+// ── Atualiza PORTFOLIOS dinamicamente a partir do weights_history do JSON ──
+// Chamado logo após localJson ser carregado, garante que novos ativos
+// adicionados na planilha de rebalanceamento apareçam no dashboard.
+function updatePortfoliosFromJson() {
+  if (!localJson?.weights_history) return;
+
+  // Mapa ticker → setor (cobertura ampla; fallback: 'Outros')
+  const SECTOR_MAP = {
+    // Financeiro
+    'BPAC11':'Financeiro','BBAS3':'Financeiro','ITUB4':'Financeiro',
+    'JPMC34':'Financeiro','BBDC4':'Financeiro','B3SA3':'Financeiro',
+    'SANB11':'Financeiro','BPAN4':'Financeiro',
+    // Energia Elétrica
+    'CPLE3':'Energia Elétrica','AXIA3':'Energia Elétrica','AXIA6':'Energia Elétrica',
+    'CPLE5':'Energia Elétrica','CPLE6':'Energia Elétrica','CPFE3':'Energia Elétrica',
+    // Energia
+    'ENEV3':'Energia',
+    // Aviação
+    'EMBJ3':'Aviação',
+    // Indústria
+    'WEGE3':'Indústria',
+    // Siderurgia
+    'GGBR4':'Siderurgia',
+    // Mineração
+    'VALE3':'Mineração','AURA33':'Mineração',
+    // Agroindústria
+    'TTEN3':'Agroindústria','JBSS32':'Agroindústria','JBBS3':'Agroindústria',
+    // Moda/Vestuário
+    'ARZZ3':'Moda','AZZA3':'Moda',
+    // Saneamento
+    'CSMG3':'Saneamento',
+    // Índices/ETFs
+    'IVVB11':'Índices','NDIV11':'Índice','SMAL11':'Índices',
+    // Seguros
+    'CXSE3':'Seguros','BBSE3':'Seguros',
+    // Petróleo & Gás
+    'PETR4':'Petróleo & Gás',
+    // Petroquímica
+    'SUZB3':'Petroquímica',
+    // Saúde
+    'RADL3':'Saúde',
+    // Shoppings
+    'IGTI11':'Shoppings',
+  };
+
+  Object.keys(PORTFOLIOS).forEach(key => {
+    const hist = localJson.weights_history[key];
+    if (!hist || !Object.keys(hist).length) return;
+
+    const allMonths = Object.keys(hist).sort();
+    const latestMonth = allMonths[allMonths.length - 1];
+    const latestWeights = hist[latestMonth] || {};
+
+    // União de todos os tickers que já apareceram no histórico
+    const allTickerSet = new Set();
+    allMonths.forEach(m => Object.keys(hist[m]).forEach(t => allTickerSet.add(t)));
+
+    const tickers = [...allTickerSet];
+    PORTFOLIOS[key].tickers = tickers;
+    PORTFOLIOS[key].weights = tickers.map(t => latestWeights[t] ?? 0);
+    PORTFOLIOS[key].sectors = tickers.map(t => SECTOR_MAP[t] || 'Outros');
+  });
 }
 
 // Parse local JSON into the same {ticker: [{date, close}]} format used by charts
@@ -1940,7 +2009,15 @@ async function renderPerf() {
 function renderSector() {
   const p = PORTFOLIOS[currentPortfolio];
   const map = {};
-  p.tickers.forEach((t,i) => { map[p.sectors[i]] = (map[p.sectors[i]]||0)+p.weights[i]; });
+  // Usa weights_history (mês mais recente) se disponível; ignora ativos com peso 0
+  const wHist = localJson?.weights_history?.[currentPortfolio] || {};
+  const allMonths = Object.keys(wHist).sort();
+  const curW = allMonths.length ? wHist[allMonths[allMonths.length-1]] : null;
+  p.tickers.forEach((t,i) => {
+    const w = curW ? (curW[t] ?? p.weights[i]) : p.weights[i];
+    if (!w) return; // omite ativos sem alocação atual
+    map[p.sectors[i]] = (map[p.sectors[i]]||0)+w;
+  });
   const sectors = Object.keys(map).sort((a,b)=>map[b]-map[a]);
   const values  = sectors.map(s=>map[s]);
   const bgClrs  = sectors.map(s=>SECTOR_COLORS[s]||'#718096');
@@ -2003,14 +2080,17 @@ async function renderTable() {
   }, 0);
 
   const rows = p.tickers.map((t, i) => {
-    const b       = BADGE_CLASS[p.sectors[i]] || 'b-fin';
-    const dyV     = dy[t];
-    const dyStr   = dyV != null ? `${dyV.toFixed(1)}%` : 'N/D';
-    const dyClass = dyV != null && dyV >= 5 ? 'dy-val' : dyV != null && dyV < 3 ? 'dy-low' : '';
-
     // Peso atual: usa weights_history se disponível, senão estático
     const wCur  = curW  ? (curW[t]  ?? 0) : p.weights[i];
     const wPrev = prevW ? (prevW[t] ?? 0) : null;
+
+    // Omite tickers que não têm alocação nem agora nem no mês anterior
+    if (wCur === 0 && (wPrev === null || wPrev === 0)) return '';
+
+    const b       = BADGE_CLASS[p.sectors[i]] || 'b-out';
+    const dyV     = dy[t];
+    const dyStr   = dyV != null ? `${dyV.toFixed(1)}%` : 'N/D';
+    const dyClass = dyV != null && dyV >= 5 ? 'dy-val' : dyV != null && dyV < 3 ? 'dy-low' : '';
 
     // Detecta mudança vs mês anterior
     let pesoCel;
@@ -2036,7 +2116,7 @@ async function renderTable() {
       <td style="text-align:center"><span class="${dyClass}">${dyStr}</span></td>
       <td style="text-align:center"><span style="background:#e2e8f0;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">D+2</span></td>
     </tr>`;
-  }).join('');
+  }).filter(Boolean).join('');
 
   // Nota explicativa do mês exibido
   const pesoNota = curMonthKey

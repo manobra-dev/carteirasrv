@@ -848,11 +848,30 @@ def build_dashboard_json(
     fetch_start = datetime(y, m, 1)
     start_ts = int(fetch_start.timestamp())
 
+    # ── Pesos históricos do Excel (lido PRIMEIRO para incluir novos ativos) ──
+    xlsx_path = SCRIPT_DIR / "rebalanceamentos_template.xlsx"
+    print(f"\n{'─'*54}")
+    print("  Lendo pesos históricos do Excel…")
+    print(f"{'─'*54}")
+    weights_history = ler_pesos_historicos(xlsx_path)
+
+    # Tickers base (hardcoded) + benchmarks
     all_display_tickers = list(dict.fromkeys(
         t
         for p in PORTFOLIOS.values()
         for t in p["ativos"]
-    )) + ["BOVA11", "DIVO11"]  # BOVA11 = benchmark acoes; DIVO11 = benchmark dividendos (ETF IDIV)
+    )) + ["BOVA11", "DIVO11"]
+
+    # Adiciona tickers do Excel que ainda não estão na lista (novos ativos)
+    extra_from_excel: set[str] = set()
+    for port_hist in weights_history.values():
+        for month_weights in port_hist.values():
+            extra_from_excel.update(month_weights.keys())
+    extra_from_excel -= set(all_display_tickers)
+    if extra_from_excel:
+        novos = sorted(extra_from_excel)
+        print(f"  📋  Novos ativos no Excel (não hardcoded): {', '.join(novos)}")
+        all_display_tickers.extend(novos)
 
     price_source = "yfinance (retorno total)" if use_yfinance else "brapi.dev (retorno de preço)"
     print(f"\n{'─'*54}")
@@ -881,13 +900,6 @@ def build_dashboard_json(
     # Tickers sem benchmarks (ETFs de índice, DY não aplicável da mesma forma)
     dy_tickers = [t for t in all_display_tickers if t not in ("BOVA11", "DIVO11")]
     dy = fetcher.fetch_dy(dy_tickers, use_fundamentus=use_fundamentus)
-
-    # ── Pesos históricos do Excel ─────────────────────────
-    xlsx_path = SCRIPT_DIR / "rebalanceamentos_template.xlsx"
-    print(f"\n{'─'*54}")
-    print("  Lendo pesos históricos do Excel…")
-    print(f"{'─'*54}")
-    weights_history = ler_pesos_historicos(xlsx_path)
 
     # ── CDI mensal (BCB) ──────────────────────────────────
     print(f"\n{'─'*54}")
