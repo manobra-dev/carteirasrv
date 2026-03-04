@@ -1980,19 +1980,68 @@ async function renderTable() {
   const p  = PORTFOLIOS[currentPortfolio];
   const dy = await fetchDY(p.tickers);
 
+  // ── Pesos do mês atual e anterior via weights_history ──
+  const wHist = localJson?.weights_history?.[currentPortfolio] || {};
+  const allMonths = Object.keys(wHist).sort();
+  const curMonthKey  = allMonths.length ? allMonths[allMonths.length - 1] : null;
+  const prevMonthKey = allMonths.length > 1 ? allMonths[allMonths.length - 2] : null;
+  const curW  = curMonthKey  ? wHist[curMonthKey]  : null;
+  const prevW = prevMonthKey ? wHist[prevMonthKey] : null;
+
+  // Label do mês (ex: "Fev/26")
+  const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  function mesLabel(ym) {
+    if (!ym) return '';
+    const [y, m] = ym.split('-');
+    return `${MONTHS_SHORT[parseInt(m)-1]}/${y.slice(2)}`;
+  }
+
+  // Calcula total de peso atual (pode não ser 100% se houve mudança)
+  const totalCurW = p.tickers.reduce((s, t, i) => {
+    const w = curW ? (curW[t] ?? 0) : p.weights[i];
+    return s + w;
+  }, 0);
+
   const rows = p.tickers.map((t, i) => {
     const b       = BADGE_CLASS[p.sectors[i]] || 'b-fin';
     const dyV     = dy[t];
     const dyStr   = dyV != null ? `${dyV.toFixed(1)}%` : 'N/D';
     const dyClass = dyV != null && dyV >= 5 ? 'dy-val' : dyV != null && dyV < 3 ? 'dy-low' : '';
+
+    // Peso atual: usa weights_history se disponível, senão estático
+    const wCur  = curW  ? (curW[t]  ?? 0) : p.weights[i];
+    const wPrev = prevW ? (prevW[t] ?? 0) : null;
+
+    // Detecta mudança vs mês anterior
+    let pesoCel;
+    if (wPrev !== null && wPrev !== wCur) {
+      // Houve alteração — mostra "antes → depois" com cor
+      const seta = wCur > wPrev
+        ? `<span style="color:#276749;font-weight:700">${wCur}%</span>`
+        : wCur === 0
+          ? `<span style="color:#c53030;font-weight:700">0%</span>`
+          : `<span style="color:#c05621;font-weight:700">${wCur}%</span>`;
+      const antes = `<span style="color:#a0aec0;text-decoration:line-through;font-size:11px">${wPrev}%</span>`;
+      const arrow = `<span style="color:#718096;font-size:10px">→</span>`;
+      pesoCel = `<td style="text-align:center;white-space:nowrap">${antes} ${arrow} ${seta}</td>`;
+    } else {
+      // Sem alteração
+      pesoCel = `<td style="text-align:center;font-weight:600">${wCur}%</td>`;
+    }
+
     return `<tr>
       <td><strong>${t}</strong></td>
       <td><span class="badge ${b}">${p.sectors[i]}</span></td>
-      <td style="text-align:center;font-weight:600">${p.weights[i]}%</td>
+      ${pesoCel}
       <td style="text-align:center"><span class="${dyClass}">${dyStr}</span></td>
       <td style="text-align:center"><span style="background:#e2e8f0;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">D+2</span></td>
     </tr>`;
   }).join('');
+
+  // Nota explicativa do mês exibido
+  const pesoNota = curMonthKey
+    ? `Pesos referentes a ${mesLabel(curMonthKey)}${prevMonthKey ? ` (anterior: ${mesLabel(prevMonthKey)})` : ''}. Alterações destacadas com <span style="text-decoration:line-through">antes</span> → depois.`
+    : 'Pesos estáticos (sem histórico de rebalanceamento no Excel).';
 
   document.getElementById('tbl-container').innerHTML = `
     <p style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:16px">${p.name} — Ativos da Carteira</p>
@@ -2008,12 +2057,12 @@ async function renderTable() {
       <tbody>${rows}</tbody>
       <tfoot><tr style="background:#ebf8ff;font-weight:700">
         <td colspan="2" style="color:#2b6cb0">TOTAL</td>
-        <td style="text-align:center;color:#2b6cb0">100%</td>
+        <td style="text-align:center;color:#2b6cb0">${totalCurW}%</td>
         <td colspan="2"></td>
       </tr></tfoot>
     </table>
     </div>
-    <p class="note">DY = Dividend Yield dos últimos 12 meses (indicativo). Fontes: Fundamentus, brapi.dev.</p>`;
+    <p class="note">${pesoNota} DY = Dividend Yield dos últimos 12 meses. Fontes: Fundamentus, brapi.dev.</p>`;
 }
 
 function renderMeto() {

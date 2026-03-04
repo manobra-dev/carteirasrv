@@ -1220,8 +1220,8 @@ if __name__ == "__main__":
         "use_yfinance":    not getattr(args, "sem_yfinance", False),
     })
 
-    # ── Inicia thread de auto-refresh diário (07:00 BRT) ──
-    _ar = threading.Thread(target=_auto_refresh_loop, kwargs={"hour_brt": 7}, daemon=True)
+    # ── Inicia thread de auto-refresh diário (11:00 BRT) ──
+    _ar = threading.Thread(target=_auto_refresh_loop, kwargs={"hour_brt": 11}, daemon=True)
     _ar.start()
 
     # ── Serve ──
