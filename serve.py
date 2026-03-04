@@ -54,6 +54,17 @@ import subprocess
 SCRIPT_DIR = Path(__file__).parent
 OUTPUT_JSON = SCRIPT_DIR / "dashboard_data.json"
 
+# ── Estado global do refresh ──────────────────────────────
+_refresh_state = {
+    "running":   False,
+    "last_ok":   None,   # ISO timestamp do último refresh bem-sucedido
+    "error":     None,   # mensagem do último erro (ou None)
+}
+_refresh_lock = threading.Lock()
+
+# Parâmetros de execução (preenchidos no __main__ e usados pelo auto-refresh)
+_run_params: dict = {}
+
 # Railway injeta a variável PORT automaticamente; localmente usa 8080
 DEFAULT_PORT = int(os.environ.get("PORT", 8080))
 
@@ -898,6 +909,95 @@ def build_dashboard_json(
     }
 
 
+# ─── Refresh de dados (manual e automático) ───────────────
+
+def _do_refresh() -> bool:
+    """Executa o fetch de dados e salva o JSON. Retorna True se bem-sucedido."""
+    global _refresh_state
+    p = _run_params
+    if not p:
+        return False
+
+    _refresh_state["running"] = True
+    _refresh_state["error"]   = None
+    try:
+        start_date     = p["start_date"]
+        token          = p.get("token")
+        use_fundamentus = p.get("use_fundamentus", True)
+        use_yfinance   = p.get("use_yfinance", True)
+
+        print(f"\n  🔄  Atualizando dados ({datetime.now().strftime('%d/%m/%Y %H:%M')})…")
+        data = build_dashboard_json(
+            start_date,
+            token=token,
+            use_fundamentus=use_fundamentus,
+            use_yfinance=use_yfinance,
+        )
+        with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        now_iso = datetime.now().isoformat(timespec="seconds")
+        _refresh_state["last_ok"] = now_iso
+        _refresh_state["error"]   = None
+        print(f"  ✅  Dados atualizados: {OUTPUT_JSON.name} ({now_iso})")
+        return True
+    except Exception as e:
+        msg = f"{type(e).__name__}: {e}"
+        _refresh_state["error"] = msg
+        print(f"  ✗   Erro no refresh: {msg}")
+        return False
+    finally:
+        _refresh_state["running"] = False
+
+
+def _refresh_in_background():
+    """Dispara _do_refresh em thread separada (evita bloquear o servidor HTTP)."""
+    if _refresh_state["running"]:
+        return  # já rodando
+    t = threading.Thread(target=_do_refresh, daemon=True)
+    t.start()
+
+
+def _auto_refresh_loop(hour_brt: int = 7):
+    """
+    Loop em thread de fundo: dispara refresh todos os dias quando o relógio
+    de Brasília (UTC-3) bater a hora configurada (default: 07:00).
+    Também atualiza imediatamente se o JSON tiver mais de 23h de idade.
+    """
+    import time as _time
+
+    print(f"  🕖  Auto-refresh agendado para {hour_brt:02d}:00 (horário de Brasília)")
+
+    def _json_age_hours() -> float:
+        if not OUTPUT_JSON.exists():
+            return 999.0
+        mtime = OUTPUT_JSON.stat().st_mtime
+        return (datetime.now().timestamp() - mtime) / 3600
+
+    # Atualiza imediatamente se o JSON tiver mais de 23h
+    if _json_age_hours() > 23:
+        print("  ℹ   JSON com mais de 23h — atualizando agora…")
+        _do_refresh()
+
+    last_refresh_day = None
+    while True:
+        _time.sleep(60)  # verifica a cada minuto
+        try:
+            # UTC-3 = Brasil (horário padrão de Brasília / BRT)
+            now_brt = datetime.utcnow().replace(tzinfo=None)
+            # Offset manual: utc - 3h
+            from datetime import timedelta
+            now_brt = datetime.utcnow() - timedelta(hours=3)
+            today   = now_brt.date()
+
+            # Dispara uma vez por dia na hora configurada
+            if now_brt.hour == hour_brt and today != last_refresh_day:
+                last_refresh_day = today
+                _refresh_in_background()
+        except Exception:
+            pass
+
+
 # ─── HTTP Server ──────────────────────────────────────────
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -908,6 +1008,15 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_request(self, *_):
         pass
 
+    def _json_response(self, data: dict, status: int = 200):
+        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         """Intercepta /lamina/<portfolio> para gerar o PDF on-demand."""
         path = self.path.split('?')[0].rstrip('/')
@@ -916,6 +1025,29 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Location', '/dashboard_carteiras_v2.html')
             self.end_headers()
             return
+
+        # ── API: iniciar refresh manual ─────────────────────────
+        if path == '/api/refresh':
+            if _refresh_state["running"]:
+                self._json_response({"status": "running", "message": "Atualização já em andamento."})
+            else:
+                _refresh_in_background()
+                self._json_response({"status": "started", "message": "Atualização iniciada."})
+            return
+
+        # ── API: status do refresh ──────────────────────────────
+        if path == '/api/status':
+            age_h = None
+            if OUTPUT_JSON.exists():
+                age_h = round((datetime.now().timestamp() - OUTPUT_JSON.stat().st_mtime) / 3600, 1)
+            self._json_response({
+                "running":  _refresh_state["running"],
+                "last_ok":  _refresh_state["last_ok"],
+                "error":    _refresh_state["error"],
+                "json_age_hours": age_h,
+            })
+            return
+
         if path.startswith('/lamina/'):
             portfolio_key = path.split('/')[-1]   # 'acoes' ou 'dividendos'
             if portfolio_key not in ('acoes', 'dividendos'):
@@ -1074,6 +1206,23 @@ if __name__ == "__main__":
 
     if args.so_pdf:
         sys.exit(0)
+
+    # ── Armazena parâmetros para o auto-refresh ──
+    try:
+        _start_date = datetime.strptime(args.inicio, "%Y-%m").replace(day=1)
+    except ValueError:
+        _start_date = datetime(2024, 6, 1)
+
+    _run_params.update({
+        "start_date":      _start_date,
+        "token":           args.token or BRAPI_TOKEN,
+        "use_fundamentus": not args.sem_fundamentus,
+        "use_yfinance":    not getattr(args, "sem_yfinance", False),
+    })
+
+    # ── Inicia thread de auto-refresh diário (07:00 BRT) ──
+    _ar = threading.Thread(target=_auto_refresh_loop, kwargs={"hour_brt": 7}, daemon=True)
+    _ar.start()
 
     # ── Serve ──
     start_server(

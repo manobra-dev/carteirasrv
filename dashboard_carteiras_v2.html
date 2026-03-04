@@ -158,7 +158,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 
 /* ── DATA SOURCE BANNER ── */
 #data-banner{display:none;margin-bottom:18px;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.1)}
-.banner-ok   {background:#f0fff4;border:1px solid #9ae6b4;padding:10px 16px;font-size:12px;color:#276749;display:flex;align-items:center;gap:8px}
+.banner-ok   {background:#f0fff4;border:1px solid #9ae6b4;padding:10px 16px;font-size:12px;color:#276749;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.btn-refresh {background:#276749;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-weight:600;white-space:nowrap;transition:background .15s}
+.btn-refresh:hover{background:#22543d}
+.btn-refresh:disabled{background:#9ae6b4;cursor:not-allowed}
 .banner-err  {background:#fff5f5;border:1px solid #feb2b2}
 .banner-err .b-head{background:#c53030;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px}
 .banner-err .b-body{padding:16px 20px;font-size:13px;color:#2d3748}
@@ -461,11 +464,52 @@ function _lastClosedMonth() {
 }
 
 // ╔══════════════════════════════════════════════════════╗
+// ║   ATUALIZAÇÃO DE DADOS (botão manual)                 ║
+// ╚══════════════════════════════════════════════════════╝
+async function triggerRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Atualizando…';
+
+  try {
+    const r = await fetch('/api/refresh');
+    const json = await r.json();
+    if (json.status === 'started' || json.status === 'running') {
+      btn.textContent = '⏳ Buscando cotações…';
+      // Polling: verifica a cada 5s se o refresh terminou
+      const pollInterval = setInterval(async () => {
+        try {
+          const s = await fetch('/api/status');
+          const st = await s.json();
+          if (!st.running) {
+            clearInterval(pollInterval);
+            if (st.error) {
+              btn.disabled = false;
+              btn.textContent = '⚠️ Erro — tentar novamente';
+            } else {
+              btn.textContent = '✅ Concluído — recarregando…';
+              setTimeout(() => window.location.reload(), 1500);
+            }
+          }
+        } catch(_) { clearInterval(pollInterval); btn.disabled = false; btn.textContent = '🔄 Atualizar Dados'; }
+      }, 5000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '🔄 Atualizar Dados';
+    }
+  } catch(_) {
+    btn.disabled = false;
+    btn.textContent = '⚠️ Erro de rede';
+  }
+}
+
+// ╔══════════════════════════════════════════════════════╗
 // ║   BANNER HELPERS                                      ║
 // ╚══════════════════════════════════════════════════════╝
 function showBannerOk(msg) {
   const b = document.getElementById('data-banner');
-  b.innerHTML = `<div class="banner-ok">✅ ${msg}</div>`;
+  b.innerHTML = `<div class="banner-ok"><span>✅ ${msg}</span><button class="btn-refresh" id="btn-refresh" onclick="triggerRefresh()">🔄 Atualizar Dados</button></div>`;
   b.style.display = 'block';
 }
 
