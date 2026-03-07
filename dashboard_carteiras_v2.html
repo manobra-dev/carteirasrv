@@ -1022,7 +1022,7 @@ async function renderPerfCarteira() {
   const benchTicker = p.benchmark || 'BOVA11';
   const benchLabel  = benchTicker === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11 (Ibovespa)';
 
-  // ── Cálculo mensal (sempre feito — usado para a tabela abaixo) ──
+  // ── Cálculo mensal (fallback — usado se dados diários não disponíveis) ──
   const monthlyWeighted = allDates.map(ts => {
     const monthKey = new Date(ts * 1000).toISOString().slice(0, 7);
     const wMonth   = wHist[monthKey] || null;
@@ -1041,6 +1041,11 @@ async function renderPerfCarteira() {
     return wSum > 0 ? wRet : null;
   });
 
+  // Referências da tabela (sobrescritas pelos sintéticos se dados diários disponíveis)
+  let tableAllDates    = allDates;
+  let tableWeighted    = monthlyWeighted;
+  let tableBenchHistArr = data[benchTicker] || [];
+
   // ── Gráfico: usa cotações DIÁRIAS quando disponíveis ────
   const dailyPrices = localJson?.prices_daily;
   const hasDailyData = dailyPrices && p.tickers.some(t => dailyPrices[t] && Object.keys(dailyPrices[t]).length > 0);
@@ -1053,10 +1058,65 @@ async function renderPerfCarteira() {
       relevantTickers.flatMap(t => Object.keys(dailyPrices[t] || {}))
     )].sort();
 
-    // Base = primeiro dia de negociação a partir do mês de início da carteira
+    // Base do gráfico = último pregão do mês ANTERIOR ao início da carteira.
+    // Alinha o "0%" do gráfico com a base de cálculo da tabela mensal.
     const portfStartMonth = localJson?.start_date || allDailyDates[0]?.slice(0, 7);
-    const globalBase = allDailyDates.find(d => d.slice(0, 7) >= portfStartMonth) || allDailyDates[0];
+    const [_psY, _psM] = portfStartMonth.split('-').map(Number);
+    const prevMonStr = _psM === 1
+      ? `${_psY - 1}-12`
+      : `${_psY}-${String(_psM - 1).padStart(2, '0')}`;
+    const lastOfPrevMon = [...allDailyDates].reverse().find(d => d.slice(0, 7) === prevMonStr);
+    const globalBase = lastOfPrevMon
+      || allDailyDates.find(d => d.slice(0, 7) >= portfStartMonth)
+      || allDailyDates[0];
     const useDates = allDailyDates.filter(d => d >= globalBase);
+
+    // ── Sintetiza fechamentos mensais a partir dos dados diários ──────────
+    // Garante que gráfico e tabela usem a mesma série de preços ajustados.
+    const lastDayByMon = {};
+    p.tickers.concat([benchTicker]).forEach(ticker => {
+      const pm = dailyPrices[ticker] || {};
+      lastDayByMon[ticker] = {};
+      Object.entries(pm).forEach(([dStr, c]) => {
+        const mon = dStr.slice(0, 7);
+        if (!lastDayByMon[ticker][mon] || dStr > lastDayByMon[ticker][mon].d)
+          lastDayByMon[ticker][mon] = { d: dStr, c: Number(c) };
+      });
+    });
+    const synthMonthsAll = [...new Set(
+      p.tickers.flatMap(t => Object.keys(lastDayByMon[t] || {}))
+    )].sort();
+    // Inclui o mês base (anterior ao início) para calcular o 1º retorno
+    const synthMonthsFull = [...new Set([prevMonStr, ...synthMonthsAll])]
+      .filter(m => m >= prevMonStr).sort();
+
+    if (synthMonthsFull.length >= 2) {
+      tableAllDates = synthMonthsFull.map(m =>
+        Math.floor(new Date(m + '-01T00:00:00Z').getTime() / 1000)
+      );
+      tableWeighted = tableAllDates.map((ts, i) => {
+        if (i === 0) return null;
+        const curM  = synthMonthsFull[i];
+        const prevM = synthMonthsFull[i - 1];
+        const wM = wHist[curM] || null;
+        let wRet = 0, wSum = 0;
+        p.tickers.forEach((ticker, ti) => {
+          const curC  = lastDayByMon[ticker]?.[curM]?.c;
+          const prevC = lastDayByMon[ticker]?.[prevM]?.c;
+          if (!curC || !prevC || prevC === 0) return;
+          const ret = (curC - prevC) / prevC;
+          const w = wM ? (wM[ticker] ?? 0) : p.weights[ti];
+          if (!w) return;
+          wRet += (w / 100) * ret;
+          wSum += w / 100;
+        });
+        return wSum > 0 ? wRet : null;
+      });
+      tableBenchHistArr = tableAllDates.map((ts, i) => ({
+        date: ts,
+        close: lastDayByMon[benchTicker]?.[synthMonthsFull[i]]?.c || 0
+      }));
+    }
 
     if (useDates.length > 1) {
       chartLabels = useDates.map(d => {
@@ -1219,8 +1279,10 @@ async function renderPerfCarteira() {
     }
   });
 
-  // ── Tabela de rentabilidade mensal (sempre baseada em dados mensais) ──
-  renderRentabilityTable(allDates, monthlyWeighted, data[benchTicker] || [], benchLabel);
+  // ── Tabela de rentabilidade mensal ──────────────────────────────────────
+  // Usa dados sintéticos (diários→mensais) quando disponíveis para
+  // garantir consistência com o gráfico de performance acumulada.
+  renderRentabilityTable(tableAllDates, tableWeighted, tableBenchHistArr, benchLabel);
 }
 
 // ╔══════════════════════════════════════════════════════╗
