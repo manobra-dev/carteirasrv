@@ -1165,58 +1165,12 @@ if __name__ == "__main__":
         print("  CARTEIRAS TEMÁTICAS — SERVIDOR LOCAL")
         print("═" * 54)
 
-    if not args.so_servir:
-        try:
-            start_date = datetime.strptime(args.inicio, "%Y-%m").replace(day=1)
-        except ValueError:
-            print(f"  ✗  Formato de data inválido: '{args.inicio}'. Use YYYY-MM")
-            sys.exit(1)
-
-        # ── Fetch data ──
-        try:
-            data = build_dashboard_json(
-                start_date,
-                token=args.token,
-                use_fundamentus=not args.sem_fundamentus,
-                use_yfinance=not args.sem_yfinance,
-            )
-        except Exception as e:
-            print(f"\n  ✗  Erro ao buscar dados: {e}")
-            print("     Verifique sua conexão e tente novamente.")
-            print("     Para iniciar só o servidor: python3 serve.py --so-servir")
-            sys.exit(1)
-
-        # ── Save JSON ──
-        with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-
-        n = len(data["tickers_found"])
-        print(f"\n  ✅  {n} ativos salvos → {OUTPUT_JSON.name}")
-    else:
-        if OUTPUT_JSON.exists():
-            print(f"  ℹ   Usando dados existentes: {OUTPUT_JSON.name}")
-        else:
-            print("  ⚠   dashboard_data.json não encontrado. Execute sem --so-servir primeiro.")
-
-    # ── Exportar PDF ──
-    if args.exportar_pdf or args.so_pdf:
+    if args.so_pdf:
         mes_pdf = args.mes_pdf or datetime.now().strftime("%Y-%m")
         factsheet_script = SCRIPT_DIR / "gerar_factsheet.py"
         if factsheet_script.exists():
-            print(f"\n{'─'*54}")
-            print(f"  🖨   Gerando factsheet PDF — {mes_pdf}…")
-            print(f"{'─'*54}")
             cmd = [sys.executable, str(factsheet_script), "--mes", mes_pdf]
-            result = subprocess.run(cmd, cwd=str(SCRIPT_DIR))
-            if result.returncode == 0:
-                pdf_out = SCRIPT_DIR / f"factsheet_{mes_pdf}.pdf"
-                print(f"\n  ✅  Factsheet pronto: {pdf_out.name}")
-            else:
-                print(f"\n  ⚠  Erro ao gerar o factsheet PDF.")
-        else:
-            print(f"\n  ⚠  gerar_factsheet.py não encontrado em {SCRIPT_DIR}")
-
-    if args.so_pdf:
+            subprocess.run(cmd, cwd=str(SCRIPT_DIR))
         sys.exit(0)
 
     # ── Armazena parâmetros para o auto-refresh ──
@@ -1232,14 +1186,64 @@ if __name__ == "__main__":
         "use_yfinance":    not getattr(args, "sem_yfinance", False),
     })
 
+    # ── Sobe o servidor HTTP PRIMEIRO (garante que o healthcheck do Railway passe) ──
+    # O fetch de dados roda em background; o dashboard mostra dados antigos
+    # (ou erro de carregamento) enquanto o JSON está sendo gerado.
+    os.chdir(SCRIPT_DIR)
+    _server_obj = http.server.HTTPServer(("", args.porta), QuietHandler)
+    _srv_thread = threading.Thread(target=_server_obj.serve_forever, daemon=True)
+    _srv_thread.start()
+    print(f"  🌐  Servidor HTTP iniciado na porta {args.porta}")
+
+    if args.sem_browser is False:
+        threading.Timer(0.8, lambda: webbrowser.open(
+            f"http://localhost:{args.porta}/{args.html}"
+        )).start()
+
     # ── Inicia thread de auto-refresh diário (11:00 BRT) ──
     _ar = threading.Thread(target=_auto_refresh_loop, kwargs={"hour_brt": 11}, daemon=True)
     _ar.start()
 
-    # ── Serve ──
-    start_server(
-        port=args.porta,
-        directory=SCRIPT_DIR,
-        open_browser=not args.sem_browser,
-        html_file=args.html,
-    )
+    # ── Fetch/save de dados (pode ser demorado — roda após o servidor subir) ──
+    if not args.so_servir:
+        try:
+            print("  ⏳  Buscando dados de mercado (pode levar alguns minutos)…")
+            data = build_dashboard_json(
+                _start_date,
+                token=args.token,
+                use_fundamentus=not args.sem_fundamentus,
+                use_yfinance=not args.sem_yfinance,
+            )
+            with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            n = len(data["tickers_found"])
+            print(f"\n  ✅  {n} ativos salvos → {OUTPUT_JSON.name}")
+        except Exception as e:
+            print(f"\n  ✗  Erro ao buscar dados: {e}")
+            print("     Servidor continua rodando com dados anteriores (se existirem).")
+    else:
+        if OUTPUT_JSON.exists():
+            print(f"  ℹ   Usando dados existentes: {OUTPUT_JSON.name}")
+        else:
+            print("  ⚠   dashboard_data.json não encontrado. Execute sem --so-servir primeiro.")
+
+    # ── Exportar PDF (após dados prontos) ──
+    if args.exportar_pdf:
+        mes_pdf = args.mes_pdf or datetime.now().strftime("%Y-%m")
+        factsheet_script = SCRIPT_DIR / "gerar_factsheet.py"
+        if factsheet_script.exists():
+            print(f"\n  🖨   Gerando factsheet PDF — {mes_pdf}…")
+            cmd = [sys.executable, str(factsheet_script), "--mes", mes_pdf]
+            result = subprocess.run(cmd, cwd=str(SCRIPT_DIR))
+            if result.returncode == 0:
+                print(f"\n  ✅  Factsheet pronto: factsheet_{mes_pdf}.pdf")
+            else:
+                print(f"\n  ⚠  Erro ao gerar o factsheet PDF.")
+
+    # ── Mantém o processo vivo (servidor roda em daemon thread) ──
+    print(f"\n  ⏹   Parar: Ctrl+C  |  URL: http://localhost:{args.porta}/{args.html}\n")
+    try:
+        _srv_thread.join()
+    except KeyboardInterrupt:
+        print("\n  ⏹  Servidor encerrado.")
+        _server_obj.shutdown()
