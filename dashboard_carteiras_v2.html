@@ -261,10 +261,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   <div id="panel-perf" class="panel">
     <div id="load-perf" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
     <div id="wrap-perf" style="display:none">
-      <!-- Sub-abas YTD / Mês anterior -->
+      <!-- Sub-abas YTD / Mês anterior / Mês vigente -->
       <div class="perf-subtabs">
-        <button class="pstab active" id="pstab-ytd" onclick="switchPerfTab('ytd',this)">YTD</button>
-        <button class="pstab" id="pstab-mes" onclick="switchPerfTab('mes',this)">Mês ant.</button>
+        <button class="pstab active" id="pstab-ytd"     onclick="switchPerfTab('ytd',this)">YTD</button>
+        <button class="pstab"        id="pstab-mes"     onclick="switchPerfTab('mes',this)">Mês ant.</button>
+        <button class="pstab"        id="pstab-vigente" onclick="switchPerfTab('vigente',this)">Mês vigente</button>
       </div>
       <div id="perf-ytd-panel">
         <div class="chart-box"><canvas id="ch-perf"></canvas></div>
@@ -272,7 +273,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
       <div id="perf-mes-panel" style="display:none">
         <div class="chart-box" id="ch-perf-mes-box"><canvas id="ch-perf-mes"></canvas></div>
       </div>
-      <p class="note" id="note-perf">* YTD: retorno acumulado desde Dez do ano anterior, preço do último dia disponível. Mês: variação no mês anterior completo. Barra cinza = benchmark.</p>
+      <div id="perf-vigente-panel" style="display:none">
+        <div class="chart-box" id="ch-perf-vigente-box"><canvas id="ch-perf-vigente"></canvas></div>
+      </div>
+      <p class="note" id="note-perf">* YTD: acumulado desde Dez do ano anterior. Mês ant.: variação no mês anterior completo. Mês vigente: variação parcial do mês em curso. Barra cinza = benchmark.</p>
       <div id="attr-perf"></div>
     </div>
   </div>
@@ -973,8 +977,9 @@ function selectPortfolio(key) {
 function switchPerfTab(tab, btn) {
   document.querySelectorAll('.pstab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  document.getElementById('perf-ytd-panel').style.display = tab === 'ytd' ? 'block' : 'none';
-  document.getElementById('perf-mes-panel').style.display = tab === 'mes' ? 'block' : 'none';
+  document.getElementById('perf-ytd-panel').style.display     = tab === 'ytd'     ? 'block' : 'none';
+  document.getElementById('perf-mes-panel').style.display     = tab === 'mes'     ? 'block' : 'none';
+  document.getElementById('perf-vigente-panel').style.display = tab === 'vigente' ? 'block' : 'none';
 }
 
 function selectChart(type, el) {
@@ -1713,8 +1718,25 @@ async function renderPerf() {
     return ytdDates.length ? pm[ytdDates[ytdDates.length - 1]] : null;
   }
 
+  // Histórico de pesos — usado para filtrar tickers por período
+  const wHistM = (localJson?.weights_history?.[currentPortfolio]) || {};
+  const wHistMonths = Object.keys(wHistM).sort();
+
+  // Retorna o peso de um ticker no mês mais recente disponível até monthStr
+  function getWeightIn(ticker, monthStr) {
+    const avail = wHistMonths.filter(m => m <= monthStr);
+    if (!avail.length) return 0;
+    return (wHistM[avail[avail.length - 1]][ticker] ?? 0);
+  }
+
   const items = [];
   p.tickers.forEach(ticker => {
+    // Exibe somente tickers com alguma alocação em 2026 (ou no ano vigente)
+    const hadWeight = wHistMonths
+      .filter(m => m.startsWith(curYearStr))
+      .some(m => (wHistM[m][ticker] ?? 0) > 0);
+    if (wHistMonths.length && !hadWeight) return;
+
     let base = null, latest = null;
     if (hasDailyPerf) {
       base   = getDailyBase(ticker);
@@ -1868,6 +1890,9 @@ async function renderPerf() {
 
     const itemsMes = [];
     p.tickers.forEach(ticker => {
+      // Exibe somente tickers com alocação no mês anterior
+      if (wHistMonths.length && getWeightIn(ticker, lcMonthStr) === 0) return;
+
       let base   = hasDailyPerf ? lastDailyOfMonth(ticker, baseMonthStr) : null;
       let latest = hasDailyPerf ? lastDailyOfMonth(ticker, lcMonthStr)   : null;
       if (!base || !latest) { base = monthlyClose(ticker, baseMonthStr); latest = monthlyClose(ticker, lcMonthStr); }
@@ -1922,6 +1947,109 @@ async function renderPerf() {
             ticks: { font:{size:12,weight:'600'}, color: ctx2 => {
               const idx = ctx2.index;
               return (!itemsMes[idx] || itemsMes[idx].isBench) ? '#718096' : '#2d3748';
+            }}
+          }
+        }
+      }
+    });
+  })();
+
+  // ── Gráfico do mês vigente (parcial, em andamento) ───
+  (function renderMesVigente() {
+    const MONTHS_SHORT_V = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const nowV = new Date();
+    const vigCurYear     = nowV.getFullYear();
+    const vigCurMonthStr = `${vigCurYear}-${String(nowV.getMonth() + 1).padStart(2,'0')}`;
+    const vigBaseMonthIdx = nowV.getMonth() === 0 ? 11 : nowV.getMonth() - 1;
+    const vigBaseYear     = nowV.getMonth() === 0 ? vigCurYear - 1 : vigCurYear;
+    const vigBaseMonthStr = `${vigBaseYear}-${String(vigBaseMonthIdx + 1).padStart(2,'0')}`;
+    const vigLabel = `${MONTHS_SHORT_V[nowV.getMonth()]}/${String(vigCurYear).slice(2)}`;
+
+    // Atualiza label da sub-aba
+    const pstabVig = document.getElementById('pstab-vigente');
+    if (pstabVig) pstabVig.textContent = vigLabel;
+
+    // Último preço diário de um mês específico
+    function lastDailyOfMonthV(ticker, monthStr) {
+      const pm = (dailyPricesPerf || {})[ticker] || {};
+      const dates = Object.keys(pm).filter(d => d.startsWith(monthStr)).sort();
+      return dates.length ? pm[dates[dates.length - 1]] : null;
+    }
+    // Último preço diário disponível (qualquer data — fallback para dias sem negociação)
+    function latestDailyAny(ticker) {
+      const pm = (dailyPricesPerf || {})[ticker] || {};
+      const dates = Object.keys(pm).sort();
+      return dates.length ? pm[dates[dates.length - 1]] : null;
+    }
+    // Fechamento mensal (fallback)
+    function monthlyCloseV(ticker, monthStr) {
+      const hist = data[ticker];
+      if (!hist) return null;
+      const pt = hist.find(d => new Date(d.date * 1000).toISOString().slice(0,7) === monthStr);
+      return pt ? pt.close : null;
+    }
+
+    const itemsVig = [];
+    p.tickers.forEach(ticker => {
+      // Exibe somente tickers com alocação no mês vigente
+      if (wHistMonths.length && getWeightIn(ticker, vigCurMonthStr) === 0) return;
+
+      // Base = último fechamento do mês anterior; Latest = cotação mais recente do mês vigente
+      let base   = hasDailyPerf ? lastDailyOfMonthV(ticker, vigBaseMonthStr) : null;
+      let latest = hasDailyPerf ? (lastDailyOfMonthV(ticker, vigCurMonthStr) || latestDailyAny(ticker)) : null;
+      if (!base || !latest) { base = monthlyCloseV(ticker, vigBaseMonthStr); latest = monthlyCloseV(ticker, vigCurMonthStr) || base; }
+      if (!base || !latest || base === latest) return;
+      itemsVig.push({ label: ticker, ret: +((latest - base) / base * 100).toFixed(2), isBench: false });
+    });
+
+    // Benchmark do mês vigente
+    {
+      let base   = hasDailyPerf ? lastDailyOfMonthV(benchTkr, vigBaseMonthStr) : null;
+      let latest = hasDailyPerf ? (lastDailyOfMonthV(benchTkr, vigCurMonthStr) || latestDailyAny(benchTkr)) : null;
+      if (!base || !latest) { base = monthlyCloseV(benchTkr, vigBaseMonthStr); latest = monthlyCloseV(benchTkr, vigCurMonthStr); }
+      if (base && latest && base !== latest)
+        itemsVig.push({ label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), isBench: true });
+    }
+
+    if (!itemsVig.length) return;
+    itemsVig.sort((a, b) => b.ret - a.ret);
+
+    const hVig = Math.max(360, itemsVig.length * 34 + 80);
+    const boxVig = document.getElementById('ch-perf-vigente-box');
+    if (boxVig) boxVig.style.height = hVig + 'px';
+
+    destroyChart('perf-vigente');
+    const ctxVig = document.getElementById('ch-perf-vigente').getContext('2d');
+    chartInstances['perf-vigente'] = new Chart(ctxVig, {
+      type: 'bar',
+      data: {
+        labels: itemsVig.map(it => it.label),
+        datasets: [{
+          label: `Retorno ${vigLabel} (%)`,
+          data: itemsVig.map(it => it.ret),
+          backgroundColor: itemsVig.map(it => it.isBench ? 'rgba(113,128,150,0.65)' : it.ret >= 0 ? 'rgba(56,161,105,0.82)' : 'rgba(229,62,62,0.78)'),
+          borderColor:     itemsVig.map(it => it.isBench ? '#718096'                 : it.ret >= 0 ? '#276749'              : '#c53030'),
+          borderWidth: 1.5, borderRadius: 4, borderSkipped: false,
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {
+          title: { display:true, text:`${p.name} — Retorno por Ativo em ${vigLabel} (%)`, font:{size:14,weight:'bold'}, color:'#2d3748', padding:{bottom:14} },
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%` } }
+        },
+        scales: {
+          x: {
+            grid: { color:'#edf2f7' },
+            ticks: { callback: v => v + '%', font:{size:10} },
+            title: { display:true, text:`Retorno parcial ${vigLabel} (%)`, font:{size:11}, color:'#718096' }
+          },
+          y: {
+            grid: { display:false },
+            ticks: { font:{size:12,weight:'600'}, color: ctx2 => {
+              const idx = ctx2.index;
+              return (!itemsVig[idx] || itemsVig[idx].isBench) ? '#718096' : '#2d3748';
             }}
           }
         }
