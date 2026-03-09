@@ -106,9 +106,11 @@ YF_TICKER_MAP = {
 TICKER_STITCH = {
     # JBS: ação B3 (JBSS3) até Jun/2025 → BDR (JBSS32) a partir de Jul/2025
     "JBSS32": {"old": "JBSS3", "new": "JBSS32", "cutoff": "2025-07"},
-    # EMBJ3 foi removido do stitch: o Yahoo Finance já conhece EMBJ3.SA após
-    # a renomeação de Out/2025. Para brapi.dev o TICKER_ALIAS["EMBJ3"]="EMBR3"
-    # garante o fallback correto como EMBR3 (série histórica contínua).
+    # Embraer: EMBR3 até Set/2025 → EMBJ3 a partir de Out/2025 (renomeação na B3)
+    # yfinance já tem EMBJ3.SA (batch regular) cobrindo Out/2025+.
+    # O stitch brapi.dev é usado para preencher o período antigo (EMBR3 → Dez/2024–Set/2025)
+    # via fetch_prices, que sempre suplementa stitch tickers com brapi.
+    "EMBJ3": {"old": "EMBR3", "new": "EMBJ3", "cutoff": "2025-10"},
 }
 
 PORTFOLIOS = {
@@ -577,12 +579,17 @@ class DataFetcher:
         else:
             missing = list(display_tickers)
 
-        if not missing:
-            return prices
-
         # ── Camada 2: brapi.dev (preço bruto, sem dividendos) ─
-        stitch_set   = {t for t in missing if t in TICKER_STITCH}
-        regular_list = [t for t in missing if t not in stitch_set]
+        # Tickers em TICKER_STITCH são SEMPRE suplementados via brapi para cobrir
+        # o período histórico do ticker antigo (EMBR3 antes de Out/2025,
+        # JBSS3 antes de Jul/2025), mesmo que o yfinance já tenha o período novo.
+        # Outros tickers só vão ao brapi se não tiveram dados no yfinance (missing).
+        stitch_set   = set(TICKER_STITCH.keys())            # sempre roda stitch brapi
+        regular_list = [t for t in missing if t not in TICKER_STITCH]
+
+        # Sai cedo só se não há nada a fazer em nenhuma das duas listas
+        if not regular_list and not stitch_set:
+            return prices
 
         # ── Processamento normal (batch) ──────────────────
         for i in range(0, len(regular_list), self.BATCH):
@@ -655,16 +662,28 @@ class DataFetcher:
                         if label >= cutoff and label not in merged:
                             merged[label] = price
 
-            if merged:
-                prices[disp_t] = merged
-                keys = sorted(merged)
-                n_old = sum(1 for k in merged if k < cutoff)
-                n_new = sum(1 for k in merged if k >= cutoff)
-                print(f"    ✓  {disp_t} (costurado): {len(merged)} meses "
-                      f"[{keys[0]} → {keys[-1]}]  "
-                      f"({n_old}×{old_api} + {n_new}×{new_api})")
-            else:
-                print(f"    ⚠  {disp_t}: sem dados após costura")
+            # Mescla brapi com dados yfinance existentes:
+            # yfinance (total return) tem prioridade — brapi só preenche meses ausentes.
+            existing = prices.get(disp_t, {})
+            n_added = 0
+            for label, price in merged.items():
+                if label not in existing:
+                    existing[label] = price
+                    n_added += 1
+            if existing:
+                prices[disp_t] = existing
+                keys = sorted(existing)
+                n_old = sum(1 for k in existing if k < cutoff)
+                n_new = sum(1 for k in existing if k >= cutoff)
+                if n_added:
+                    print(f"    ✓  {disp_t} (costurado): {len(existing)} meses "
+                          f"[{keys[0]} → {keys[-1]}]  "
+                          f"({n_old}×{old_api} + {n_new}×{new_api}, +{n_added} via brapi)")
+                else:
+                    print(f"    ℹ  {disp_t}: brapi não adicionou meses novos "
+                          f"(yfinance já tem {len(existing)} meses)")
+            elif not existing:
+                print(f"    ⚠  {disp_t}: sem dados após costura brapi")
 
             time.sleep(0.2)
 

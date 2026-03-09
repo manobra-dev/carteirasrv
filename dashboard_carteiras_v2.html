@@ -713,41 +713,48 @@ function updateHeaderPills() {
   const prevTs = Math.floor(new Date(`${prevKey}-01T00:00:00Z`).getTime() / 1000);
   const monthLabel = `${MESES[em-1]}/${String(ey).slice(2)}`;
 
-  // Retorno ponderado do mês vigente para um portfolio
+  // Último fechamento diário de um mês (YYYY-MM) para um ticker.
+  // Usa prices_daily (mesmo dado da tabela) para consistência.
+  // Fallback para prices (mensal) se não houver dados diários.
+  function lastMonthClose(ticker, monthPrefix) {
+    const pd = localJson.prices_daily?.[ticker];
+    if (pd) {
+      const dayKeys = Object.keys(pd).filter(k => k.startsWith(monthPrefix));
+      if (dayKeys.length) return Number(pd[dayKeys.sort().pop()]);
+    }
+    const pm = localJson.prices?.[ticker];
+    return pm ? Number(pm[monthPrefix]) : NaN;
+  }
+
+  // Retorno ponderado do mês vigente para um portfolio.
+  // Usa prices_daily (último pregão do mês) — mesma fonte que a tabela de
+  // rentabilidade — para garantir consistência entre card e tabela.
   function calcMonthReturn(portKey) {
-    if (!localJson?.prices) return null;
+    if (!localJson?.prices && !localJson?.prices_daily) return null;
     const p      = PORTFOLIOS[portKey];
     const wHist  = localJson.weights_history?.[portKey] || {};
     const wMonth = wHist[_endMonth] || null;
     let wRet = 0, wSum = 0;
-    // Usa tickers do mês vigente (do wHist) ou os atuais como fallback.
-    // Busca preços diretamente de localJson.prices (mensal) para cobrir
-    // tickers históricos que não estão em p.tickers.
     const mTickers = wMonth ? Object.keys(wMonth) : p.tickers;
     mTickers.forEach(ticker => {
-      const pm = localJson.prices[ticker];
-      if (!pm) return;
-      const curr = Number(pm[_endMonth]);
-      const prev = Number(pm[prevKey]);
-      if (!curr || !prev) return;
+      const curr = lastMonthClose(ticker, _endMonth);
+      const prev = lastMonthClose(ticker, prevKey);
+      if (!curr || !prev || isNaN(curr) || isNaN(prev)) return;
       const ret = (curr - prev) / prev;
       const w   = wMonth ? (wMonth[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
       if (!w) return;
       wRet += (w / 100) * ret;
       wSum += w / 100;
     });
-    // Normaliza por wSum: se algum ticker não tem dado, os com dado
-    // representam 100% do retorno proporcional (evita subponderação).
     return wSum > 0 ? (wRet / wSum) * 100 : null;
   }
 
-  // Retorno de um benchmark no mês vigente (direto do JSON)
+  // Retorno de um benchmark no mês vigente.
+  // Também usa prices_daily para consistência com a tabela.
   function calcBenchMonth(ticker) {
-    const pm = localJson.prices[ticker];
-    if (!pm) return null;
-    const curr = Number(pm[_endMonth]);
-    const prev = Number(pm[prevKey]);
-    if (!curr || !prev) return null;
+    const curr = lastMonthClose(ticker, _endMonth);
+    const prev = lastMonthClose(ticker, prevKey);
+    if (!curr || !prev || isNaN(curr) || isNaN(prev)) return null;
     return (curr - prev) / prev * 100;
   }
 
