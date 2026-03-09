@@ -733,7 +733,9 @@ function updateHeaderPills() {
       wRet += (w / 100) * ret;
       wSum += w / 100;
     });
-    return wSum > 0 ? wRet * 100 : null;
+    // Normaliza por wSum: se algum ticker não tem dado, os com dado
+    // representam 100% do retorno proporcional (evita subponderação).
+    return wSum > 0 ? (wRet / wSum) * 100 : null;
   }
 
   // Retorno de um benchmark no mês vigente (direto do JSON)
@@ -1038,7 +1040,7 @@ async function renderPerfCarteira() {
       wRet += (w / 100) * ret;
       wSum += w / 100;
     });
-    return wSum > 0 ? wRet : null;
+    return wSum > 0 ? wRet / wSum : null;
   });
 
   // Referências da tabela (sobrescritas pelos sintéticos se dados diários disponíveis)
@@ -1111,7 +1113,7 @@ async function renderPerfCarteira() {
           wRet += (w / 100) * ret;
           wSum += w / 100;
         });
-        return wSum > 0 ? wRet : null;
+        return wSum > 0 ? wRet / wSum : null;
       });
       tableBenchHistArr = tableAllDates.map((ts, i) => ({
         date: ts,

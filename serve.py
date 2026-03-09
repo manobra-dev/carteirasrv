@@ -82,19 +82,35 @@ API_BASE = "https://brapi.dev/api"
 BRAPI_TOKEN = "j8ymSoxSAvAp53ULGbFCgN"
 
 TICKER_ALIAS = {
-    "EMBJ3": "EMBR3",
-    "AXIA3": "ELET3",
-    "AXIA6": "ELET6",
+    # brapi.dev ainda indexa pelos tickers antigos / por ticker-base:
+    "EMBJ3": "EMBR3",   # Embraer renomeada de EMBR3 → EMBJ3 em out/2025
+    "AXIA3": "ELET3",   # Eletrobras ON (rebrand Âxia→Eletrobras)
+    "AXIA6": "ELET6",   # Eletrobras PNB
+    "CPLE6": "CPLE3",   # Copel PNB → proxy ON (convertida em 2024)
+    "CPLE5": "CPLE3",   # Copel PNA → proxy ON (convertida em 2024)
+    "ARZZ3": "AZZA3",   # Arezzo → renomeada AZZA3 após fusão com Soma
+}
+
+# Mapeamento de display tickers → tickers no Yahoo Finance.
+# Usado quando o ticker de exibição não existe no Yahoo Finance
+# (delisted, renomeado, proxy de outra classe).
+YF_TICKER_MAP = {
+    "CPLE6": "CPLE3",   # Copel PNB → proxy CPLE3 (Yahoo Fin. não tem CPLE6 após conversão)
+    "CPLE5": "CPLE3",   # Copel PNA → proxy CPLE3
+    "ARZZ3": "AZZA3",   # Arezzo → Yahoo Fin. usa AZZA3.SA (série histórica contínua)
 }
 
 # Tickers que trocaram de código na B3/BDR em uma data específica.
 # A série histórica é "costurada": código antigo até o mês de corte,
 # código novo a partir do mês de corte (inclusive).
 TICKER_STITCH = {
-    # JBS: ação B3 (JBBS3) até Jun/2025 → BDR (JBSS32) a partir de Jul/2025
-    "JBSS32": {"old": "JBBS3", "new": "JBSS32", "cutoff": "2025-07"},
+    # JBS: ação B3 (JBSS3) até Jun/2025 → BDR (JBSS32) a partir de Jul/2025
+    "JBSS32": {"old": "JBSS3", "new": "JBSS32", "cutoff": "2025-07"},
     # Embraer: EMBR3 até Set/2025 → EMBJ3 a partir de Out/2025 (renomeação na B3)
-    "EMBJ3":  {"old": "EMBR3", "new": "EMBJ3",  "cutoff": "2025-10"},
+    # yf_sym: Yahoo Finance ainda publica a série completa como EMBR3.SA
+    # (BDR/renomeações demoram a aparecer no Yahoo). Usamos EMBR3.SA para todo
+    # o período no yfinance; brapi.dev segue com o stitch EMBR3 + EMBJ3.
+    "EMBJ3":  {"old": "EMBR3", "new": "EMBJ3",  "cutoff": "2025-10", "yf_sym": "EMBR3"},
 }
 
 PORTFOLIOS = {
@@ -247,9 +263,11 @@ class DataFetcher:
 
     def _yf_symbol(self, display_ticker: str) -> str:
         """Converte ticker de exibição para símbolo Yahoo Finance (.SA para B3/BDR).
-        NÃO aplica TICKER_ALIAS — Yahoo Finance já usa os tickers atuais (EMBJ3, AXIA3, AXIA6).
-        TICKER_ALIAS é exclusivo do brapi.dev (que ainda indexa pelos tickers antigos)."""
-        return display_ticker + ".SA"
+        Aplica YF_TICKER_MAP para tickers delisted ou renomeados que o Yahoo Finance
+        não indexa mais (ex: CPLE6→CPLE3, ARZZ3→AZZA3).
+        NÃO aplica TICKER_ALIAS — esse dict é exclusivo do brapi.dev."""
+        mapped = YF_TICKER_MAP.get(display_ticker, display_ticker)
+        return mapped + ".SA"
 
     def fetch_prices_yfinance(
         self, display_tickers: list[str], start_dt: str
@@ -325,43 +343,66 @@ class DataFetcher:
         # ── Tickers com troca de código (stitch via yfinance) ─
         for disp_t in stitch_set:
             cfg    = TICKER_STITCH[disp_t]
-            old_sym = cfg["old"] + ".SA"
-            new_sym = cfg["new"] + ".SA"
-            cutoff  = cfg["cutoff"]
-            print(f"\n  ↔  Costurando {disp_t} via yfinance: {old_sym}+{new_sym}")
+            cutoff = cfg["cutoff"]
             merged: dict[str, float] = {}
-            try:
-                import pandas as pd
-                old_raw = yf.download(old_sym, start=start_dt, interval="1mo",
-                                      auto_adjust=True, progress=False)
-                if not old_raw.empty:
-                    for idx, v in old_raw["Close"].dropna().items():
-                        label = idx.strftime("%Y-%m")
-                        if label < cutoff and not pd.isna(v):
-                            merged[label] = round(float(v), 4)
-            except Exception as e:
-                print(f"    ⚠  {old_sym}: {e}")
 
-            try:
-                import pandas as pd
-                new_raw = yf.download(new_sym, start=start_dt, interval="1mo",
+            # Opção A: yf_sym — baixa série completa de um único símbolo no YF.
+            # Usado quando o ticker "new" ainda não existe no Yahoo Finance
+            # (BDRs recentes, renomeações que o YF ainda não publicou).
+            if "yf_sym" in cfg:
+                full_sym = cfg["yf_sym"] + ".SA"
+                print(f"\n  ↔  {disp_t} via yfinance: série completa de {full_sym} (yf_sym)")
+                try:
+                    import pandas as pd
+                    raw = yf.download(full_sym, start=start_dt, interval="1mo",
                                       auto_adjust=True, progress=False)
-                if not new_raw.empty:
-                    for idx, v in new_raw["Close"].dropna().items():
-                        label = idx.strftime("%Y-%m")
-                        if label >= cutoff and not pd.isna(v):
-                            merged[label] = round(float(v), 4)
-            except Exception as e:
-                print(f"    ⚠  {new_sym}: {e}")
+                    if not raw.empty:
+                        close_col = raw["Close"] if "Close" in raw.columns else raw.iloc[:, 0]
+                        for idx, v in close_col.dropna().items():
+                            if not pd.isna(v):
+                                merged[idx.strftime("%Y-%m")] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {full_sym}: {e}")
+
+            else:
+                # Opção B: stitch normal (ticker antigo até cutoff, novo a partir de cutoff)
+                old_sym = cfg["old"] + ".SA"
+                new_sym = cfg["new"] + ".SA"
+                print(f"\n  ↔  Costurando {disp_t} via yfinance: {old_sym}+{new_sym}")
+                try:
+                    import pandas as pd
+                    old_raw = yf.download(old_sym, start=start_dt, interval="1mo",
+                                          auto_adjust=True, progress=False)
+                    if not old_raw.empty:
+                        for idx, v in old_raw["Close"].dropna().items():
+                            label = idx.strftime("%Y-%m")
+                            if label < cutoff and not pd.isna(v):
+                                merged[label] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {old_sym}: {e}")
+
+                try:
+                    import pandas as pd
+                    new_raw = yf.download(new_sym, start=start_dt, interval="1mo",
+                                          auto_adjust=True, progress=False)
+                    if not new_raw.empty:
+                        for idx, v in new_raw["Close"].dropna().items():
+                            label = idx.strftime("%Y-%m")
+                            if label >= cutoff and not pd.isna(v):
+                                merged[label] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {new_sym}: {e}")
 
             if merged:
                 prices[disp_t] = merged
                 keys  = sorted(merged)
                 n_old = sum(1 for k in merged if k < cutoff)
                 n_new = len(merged) - n_old
+                label_old = cfg.get("yf_sym", cfg["old"])
+                label_new = cfg.get("yf_sym", cfg["new"])
                 print(f"    ✓  {disp_t} costurado: {len(merged)} meses "
                       f"[{keys[0]}→{keys[-1]}] "
-                      f"({n_old}×{cfg['old']} + {n_new}×{cfg['new']}) [total return]")
+                      f"({n_old}×{label_old} + {n_new}×{label_new}) [total return]")
             else:
                 print(f"    ⚠  {disp_t}: sem dados após costura yfinance")
 
@@ -433,34 +474,53 @@ class DataFetcher:
 
         # ── Tickers com troca de código (stitch diário) ───
         for disp_t in stitch_set:
-            cfg     = TICKER_STITCH[disp_t]
-            old_sym = cfg["old"] + ".SA"
-            new_sym = cfg["new"] + ".SA"
-            cutoff  = cfg["cutoff"]   # "YYYY-MM"
-            print(f"\n  ↔  Costurando diário {disp_t}: {old_sym}+{new_sym}")
+            cfg    = TICKER_STITCH[disp_t]
+            cutoff = cfg["cutoff"]   # "YYYY-MM"
             merged: dict[str, float] = {}
-            try:
-                import pandas as pd
-                old_raw = yf.download(old_sym, start=start_dt, interval="1d",
+
+            # Opção A: yf_sym — série completa de um único símbolo no YF
+            if "yf_sym" in cfg:
+                full_sym = cfg["yf_sym"] + ".SA"
+                print(f"\n  ↔  {disp_t} diário via yfinance: série completa de {full_sym} (yf_sym)")
+                try:
+                    import pandas as pd
+                    raw = yf.download(full_sym, start=start_dt, interval="1d",
                                       auto_adjust=True, progress=False)
-                if not old_raw.empty:
-                    for idx, v in old_raw["Close"].dropna().items():
-                        label = idx.strftime("%Y-%m-%d")
-                        if label[:7] < cutoff and not pd.isna(v):
-                            merged[label] = round(float(v), 4)
-            except Exception as e:
-                print(f"    ⚠  {old_sym}: {e}")
-            try:
-                import pandas as pd
-                new_raw = yf.download(new_sym, start=start_dt, interval="1d",
-                                      auto_adjust=True, progress=False)
-                if not new_raw.empty:
-                    for idx, v in new_raw["Close"].dropna().items():
-                        label = idx.strftime("%Y-%m-%d")
-                        if label[:7] >= cutoff and not pd.isna(v):
-                            merged[label] = round(float(v), 4)
-            except Exception as e:
-                print(f"    ⚠  {new_sym}: {e}")
+                    if not raw.empty:
+                        close_col = raw["Close"] if "Close" in raw.columns else raw.iloc[:, 0]
+                        for idx, v in close_col.dropna().items():
+                            if not pd.isna(v):
+                                merged[idx.strftime("%Y-%m-%d")] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {full_sym} diário: {e}")
+
+            else:
+                # Opção B: stitch normal
+                old_sym = cfg["old"] + ".SA"
+                new_sym = cfg["new"] + ".SA"
+                print(f"\n  ↔  Costurando diário {disp_t}: {old_sym}+{new_sym}")
+                try:
+                    import pandas as pd
+                    old_raw = yf.download(old_sym, start=start_dt, interval="1d",
+                                          auto_adjust=True, progress=False)
+                    if not old_raw.empty:
+                        for idx, v in old_raw["Close"].dropna().items():
+                            label = idx.strftime("%Y-%m-%d")
+                            if label[:7] < cutoff and not pd.isna(v):
+                                merged[label] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {old_sym}: {e}")
+                try:
+                    import pandas as pd
+                    new_raw = yf.download(new_sym, start=start_dt, interval="1d",
+                                          auto_adjust=True, progress=False)
+                    if not new_raw.empty:
+                        for idx, v in new_raw["Close"].dropna().items():
+                            label = idx.strftime("%Y-%m-%d")
+                            if label[:7] >= cutoff and not pd.isna(v):
+                                merged[label] = round(float(v), 4)
+                except Exception as e:
+                    print(f"    ⚠  {new_sym}: {e}")
 
             if merged:
                 prices[disp_t] = merged
@@ -531,16 +591,19 @@ class DataFetcher:
 
             time.sleep(0.2)  # cortesia rate-limit
 
-        # ── Tickers com troca de código (stitch) ──────────
+        # ── Tickers com troca de código (stitch brapi.dev) ──────────
         for disp_t in stitch_set:
             cfg = TICKER_STITCH[disp_t]
             old_t, new_t, cutoff = cfg["old"], cfg["new"], cfg["cutoff"]
-            print(f"\n  ↔  Costurando {disp_t}: {old_t} (até {cutoff}) + {new_t} ({cutoff}+)")
+            # Aplica TICKER_ALIAS nos dois lados do stitch para brapi.dev
+            old_api = TICKER_ALIAS.get(old_t, old_t)
+            new_api = TICKER_ALIAS.get(new_t, new_t)
+            print(f"\n  ↔  Costurando {disp_t} (brapi): {old_api} (até {cutoff}) + {new_api} ({cutoff}+)")
 
             merged: dict[str, float] = {}
 
             # Período antigo: código B3 (pré-cutoff)
-            old_resp = self._get(old_t, interval="1mo", range_="5y")
+            old_resp = self._get(old_api, interval="1mo", range_="5y")
             if old_resp and old_resp.get("results"):
                 hist = old_resp["results"][0].get("historicalDataPrice") or []
                 for label, price in self._extract_monthly(hist, start_ts).items():
@@ -549,13 +612,25 @@ class DataFetcher:
 
             time.sleep(0.2)
 
-            # Período novo: BDR (cutoff em diante)
-            new_resp = self._get(new_t, interval="1mo", range_="5y")
-            if new_resp and new_resp.get("results"):
-                hist = new_resp["results"][0].get("historicalDataPrice") or []
-                for label, price in self._extract_monthly(hist, start_ts).items():
-                    if label >= cutoff:
-                        merged[label] = price
+            # Período novo: BDR/ticker novo (cutoff em diante)
+            # Se old_api == new_api (ex: EMBJ3 → ambos EMBR3), usa o mesmo
+            # histórico para cobrir todo o período sem chamada duplicada.
+            if new_api != old_api:
+                new_resp = self._get(new_api, interval="1mo", range_="5y")
+                if new_resp and new_resp.get("results"):
+                    hist = new_resp["results"][0].get("historicalDataPrice") or []
+                    for label, price in self._extract_monthly(hist, start_ts).items():
+                        if label >= cutoff:
+                            merged[label] = price
+                time.sleep(0.2)
+            else:
+                # old e new resolvem para o mesmo ticker (ex: EMBJ3→EMBR3):
+                # a série completa já está em merged; só falta adicionar o período novo.
+                if old_resp and old_resp.get("results"):
+                    hist = old_resp["results"][0].get("historicalDataPrice") or []
+                    for label, price in self._extract_monthly(hist, start_ts).items():
+                        if label >= cutoff and label not in merged:
+                            merged[label] = price
 
             if merged:
                 prices[disp_t] = merged
@@ -564,7 +639,7 @@ class DataFetcher:
                 n_new = sum(1 for k in merged if k >= cutoff)
                 print(f"    ✓  {disp_t} (costurado): {len(merged)} meses "
                       f"[{keys[0]} → {keys[-1]}]  "
-                      f"({n_old}×{old_t} + {n_new}×{new_t})")
+                      f"({n_old}×{old_api} + {n_new}×{new_api})")
             else:
                 print(f"    ⚠  {disp_t}: sem dados após costura")
 
