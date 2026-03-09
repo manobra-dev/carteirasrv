@@ -1111,6 +1111,18 @@ async function renderPerfCarteira() {
           lastDayByMon[ticker][mon] = { d: dStr, c: Number(c) };
       });
     });
+    // Fallback: para meses sem dados diários (ex: EMBR3 Dez/2024–Set/2025, JBSS3
+    // Nov/2024–Jun/2025), usa preço mensal do brapi gravado em localJson.prices.
+    // Garante que tabela e card usem a mesma cobertura histórica.
+    allPortTickers.forEach(ticker => {
+      const mp = localJson.prices?.[ticker] || {};
+      Object.entries(mp).forEach(([mon, c]) => {
+        if (!lastDayByMon[ticker]) lastDayByMon[ticker] = {};
+        if (!lastDayByMon[ticker][mon] && c != null && !isNaN(Number(c))) {
+          lastDayByMon[ticker][mon] = { d: mon + '-28', c: Number(c) };
+        }
+      });
+    });
     const synthMonthsAll = [...new Set(
       allPortTickers.flatMap(t => Object.keys(lastDayByMon[t] || {}))
     )].sort();
