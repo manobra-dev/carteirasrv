@@ -106,11 +106,9 @@ YF_TICKER_MAP = {
 TICKER_STITCH = {
     # JBS: ação B3 (JBSS3) até Jun/2025 → BDR (JBSS32) a partir de Jul/2025
     "JBSS32": {"old": "JBSS3", "new": "JBSS32", "cutoff": "2025-07"},
-    # Embraer: EMBR3 até Set/2025 → EMBJ3 a partir de Out/2025 (renomeação na B3)
-    # yf_sym: Yahoo Finance ainda publica a série completa como EMBR3.SA
-    # (BDR/renomeações demoram a aparecer no Yahoo). Usamos EMBR3.SA para todo
-    # o período no yfinance; brapi.dev segue com o stitch EMBR3 + EMBJ3.
-    "EMBJ3":  {"old": "EMBR3", "new": "EMBJ3",  "cutoff": "2025-10", "yf_sym": "EMBR3"},
+    # EMBJ3 foi removido do stitch: o Yahoo Finance já conhece EMBJ3.SA após
+    # a renomeação de Out/2025. Para brapi.dev o TICKER_ALIAS["EMBJ3"]="EMBR3"
+    # garante o fallback correto como EMBR3 (série histórica contínua).
 }
 
 PORTFOLIOS = {
@@ -366,32 +364,45 @@ class DataFetcher:
 
             else:
                 # Opção B: stitch normal (ticker antigo até cutoff, novo a partir de cutoff)
+                # Baixa os dois símbolos num mini-batch para evitar falhas em
+                # downloads individuais (mais robusto que duas chamadas separadas).
                 old_sym = cfg["old"] + ".SA"
                 new_sym = cfg["new"] + ".SA"
                 print(f"\n  ↔  Costurando {disp_t} via yfinance: {old_sym}+{new_sym}")
                 try:
                     import pandas as pd
-                    old_raw = yf.download(old_sym, start=start_dt, interval="1mo",
-                                          auto_adjust=True, progress=False)
-                    if not old_raw.empty:
-                        for idx, v in old_raw["Close"].dropna().items():
-                            label = idx.strftime("%Y-%m")
-                            if label < cutoff and not pd.isna(v):
-                                merged[label] = round(float(v), 4)
+                    syms_batch = [old_sym, new_sym] if old_sym != new_sym else [old_sym]
+                    batch_raw = yf.download(
+                        syms_batch, start=start_dt, interval="1mo",
+                        auto_adjust=True, progress=False, group_by="ticker"
+                    )
+                    if not batch_raw.empty:
+                        for sym, min_label, max_label in [
+                            (old_sym, None, cutoff),   # old: antes do cutoff
+                            (new_sym, cutoff, None),   # new: a partir do cutoff
+                        ]:
+                            try:
+                                if len(syms_batch) > 1:
+                                    col = (sym, "Close") if (sym, "Close") in batch_raw.columns else None
+                                    series = batch_raw[col] if col else batch_raw["Close"].get(sym)
+                                else:
+                                    series = batch_raw["Close"]
+                                if series is None or (hasattr(series, "empty") and series.empty):
+                                    continue
+                                series = series.dropna()
+                                for idx, v in series.items():
+                                    label = idx.strftime("%Y-%m")
+                                    if pd.isna(v):
+                                        continue
+                                    if max_label is not None and label >= max_label:
+                                        continue
+                                    if min_label is not None and label < min_label:
+                                        continue
+                                    merged[label] = round(float(v), 4)
+                            except Exception as e2:
+                                print(f"    ⚠  {sym}: {e2}")
                 except Exception as e:
-                    print(f"    ⚠  {old_sym}: {e}")
-
-                try:
-                    import pandas as pd
-                    new_raw = yf.download(new_sym, start=start_dt, interval="1mo",
-                                          auto_adjust=True, progress=False)
-                    if not new_raw.empty:
-                        for idx, v in new_raw["Close"].dropna().items():
-                            label = idx.strftime("%Y-%m")
-                            if label >= cutoff and not pd.isna(v):
-                                merged[label] = round(float(v), 4)
-                except Exception as e:
-                    print(f"    ⚠  {new_sym}: {e}")
+                    print(f"    ⚠  stitch batch {old_sym}+{new_sym}: {e}")
 
             if merged:
                 prices[disp_t] = merged
@@ -495,32 +506,44 @@ class DataFetcher:
                     print(f"    ⚠  {full_sym} diário: {e}")
 
             else:
-                # Opção B: stitch normal
+                # Opção B: stitch normal (mini-batch dos dois símbolos juntos)
                 old_sym = cfg["old"] + ".SA"
                 new_sym = cfg["new"] + ".SA"
                 print(f"\n  ↔  Costurando diário {disp_t}: {old_sym}+{new_sym}")
                 try:
                     import pandas as pd
-                    old_raw = yf.download(old_sym, start=start_dt, interval="1d",
-                                          auto_adjust=True, progress=False)
-                    if not old_raw.empty:
-                        for idx, v in old_raw["Close"].dropna().items():
-                            label = idx.strftime("%Y-%m-%d")
-                            if label[:7] < cutoff and not pd.isna(v):
-                                merged[label] = round(float(v), 4)
+                    syms_batch = [old_sym, new_sym] if old_sym != new_sym else [old_sym]
+                    batch_raw = yf.download(
+                        syms_batch, start=start_dt, interval="1d",
+                        auto_adjust=True, progress=False, group_by="ticker"
+                    )
+                    if not batch_raw.empty:
+                        for sym, min_label, max_label in [
+                            (old_sym, None, cutoff),
+                            (new_sym, cutoff, None),
+                        ]:
+                            try:
+                                if len(syms_batch) > 1:
+                                    col = (sym, "Close") if (sym, "Close") in batch_raw.columns else None
+                                    series = batch_raw[col] if col else batch_raw["Close"].get(sym)
+                                else:
+                                    series = batch_raw["Close"]
+                                if series is None or (hasattr(series, "empty") and series.empty):
+                                    continue
+                                series = series.dropna()
+                                for idx, v in series.items():
+                                    label = idx.strftime("%Y-%m-%d")
+                                    if pd.isna(v):
+                                        continue
+                                    if max_label is not None and label[:7] >= max_label:
+                                        continue
+                                    if min_label is not None and label[:7] < min_label:
+                                        continue
+                                    merged[label] = round(float(v), 4)
+                            except Exception as e2:
+                                print(f"    ⚠  {sym}: {e2}")
                 except Exception as e:
-                    print(f"    ⚠  {old_sym}: {e}")
-                try:
-                    import pandas as pd
-                    new_raw = yf.download(new_sym, start=start_dt, interval="1d",
-                                          auto_adjust=True, progress=False)
-                    if not new_raw.empty:
-                        for idx, v in new_raw["Close"].dropna().items():
-                            label = idx.strftime("%Y-%m-%d")
-                            if label[:7] >= cutoff and not pd.isna(v):
-                                merged[label] = round(float(v), 4)
-                except Exception as e:
-                    print(f"    ⚠  {new_sym}: {e}")
+                    print(f"    ⚠  stitch diário batch {old_sym}+{new_sym}: {e}")
 
             if merged:
                 prices[disp_t] = merged
