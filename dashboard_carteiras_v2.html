@@ -225,7 +225,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   </div>
 
   <div class="cards">
-    <div class="card"><h4>Carteira de Ações</h4><div class="cv">14 ativos</div><div class="cs">Valor / Growth</div></div>
+    <div class="card"><h4>Carteira de Ações</h4><div class="cv">15 ativos</div><div class="cs">Valor / Growth</div></div>
     <div class="card" style="border-left-color:#38a169"><h4>Carteira de Dividendos</h4><div class="cv">10 ativos</div><div class="cs">Yield / Renda</div></div>
     <div class="card" style="border-left-color:#d69e2e"><h4>Benchmark</h4><div class="cv">Ibovespa · IDIV</div><div class="cs">Ações: Ibovespa · Dividendos: IDIV</div></div>
   </div>
@@ -350,9 +350,9 @@ const PORTFOLIOS = {
   acoes: {
     name: 'Carteira de Ações',
     benchmark: 'BOVA11',           // Ibovespa
-    tickers:  ['BPAC11','BBAS3','ITUB4','JPMC34','CPLE3','EMBJ3','WEGE3','GGBR4','VALE3','AURA33','AXIA3','TTEN3','CSMG3','IVVB11'],
-    weights:  [5,5,12,5,8,10,5,5,10,10,5,6,4,10],
-    sectors:  ['Financeiro','Financeiro','Financeiro','Financeiro','Energia Elétrica','Aviação','Indústria','Siderurgia','Mineração','Mineração','Energia Elétrica','Agroindústria','Saneamento','Índices']
+    tickers:  ['BPAC11','BBAS3','ITUB4','JPMC34','CPLE3','EMBJ3','WEGE3','GGBR4','VALE3','AURA33','AXIA3','TTEN3','CSMG3','IVVB11','RADL3'],
+    weights:  [5,5,12,5,8,10,5,5,10,10,5,6,4,10,4],
+    sectors:  ['Financeiro','Financeiro','Financeiro','Financeiro','Energia Elétrica','Aviação','Indústria','Siderurgia','Mineração','Mineração','Energia Elétrica','Agroindústria','Saneamento','Índices','Saúde']
   },
   dividendos: {
     name: 'Carteira de Dividendos',
@@ -385,6 +385,7 @@ const DY_BASE = {
   'TTEN3':  2.3,   // Tten
   'CSMG3':  5.4,   // Copasa
   'IVVB11': 1.2,   // ETF S&P 500 — distribuição baixa
+  'RADL3':  1.8,   // Raia Drogasil — farmácias, DY baixo
   // ── Carteira de Dividendos ─────────────────────────────
   'BBDC4':  6.2,   // Bradesco PN — inclui JCP
   'CXSE3':  5.1,   // Caixa Seguridade
