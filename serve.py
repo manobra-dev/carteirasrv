@@ -1137,6 +1137,15 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_request(self, *_):
         pass
 
+    def end_headers(self):
+        """Injeta no-cache em arquivos HTML e JSON para evitar cache do browser."""
+        stripped = self.path.split('?')[0]
+        if stripped.endswith(('.html', '.json')):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+        super().end_headers()
+
     def _json_response(self, data: dict, status: int = 200):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
