@@ -715,20 +715,23 @@ function updateHeaderPills() {
 
   // Retorno ponderado do mês vigente para um portfolio
   function calcMonthReturn(portKey) {
-    const parsed = parseLocalJson(portKey);
-    if (!parsed) return null;
+    if (!localJson?.prices) return null;
     const p      = PORTFOLIOS[portKey];
     const wHist  = localJson.weights_history?.[portKey] || {};
     const wMonth = wHist[_endMonth] || null;
     let wRet = 0, wSum = 0;
-    p.tickers.forEach((ticker, i) => {
-      const hist = parsed[ticker];
-      if (!hist) return;
-      const curr = hist.find(d => d.date === endTs);
-      const prev = hist.find(d => d.date === prevTs);
-      if (!curr || !prev || !prev.close) return;
-      const ret = (curr.close - prev.close) / prev.close;
-      const w   = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
+    // Usa tickers do mês vigente (do wHist) ou os atuais como fallback.
+    // Busca preços diretamente de localJson.prices (mensal) para cobrir
+    // tickers históricos que não estão em p.tickers.
+    const mTickers = wMonth ? Object.keys(wMonth) : p.tickers;
+    mTickers.forEach(ticker => {
+      const pm = localJson.prices[ticker];
+      if (!pm) return;
+      const curr = Number(pm[_endMonth]);
+      const prev = Number(pm[prevKey]);
+      if (!curr || !prev) return;
+      const ret = (curr - prev) / prev;
+      const w   = wMonth ? (wMonth[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
       if (!w) return;
       wRet += (w / 100) * ret;
       wSum += w / 100;
@@ -1021,6 +1024,15 @@ async function renderPerfCarteira() {
   const wHist = (localJson && localJson.weights_history)
                   ? (localJson.weights_history[currentPortfolio] || {})
                   : {};
+
+  // Todos os tickers que apareceram na carteira em QUALQUER mês (histórico + atuais).
+  // Necessário para que tickers que já saíram (ex: CPLE6, JBSS32, ARZZ3) sejam
+  // incluídos no cálculo de retorno dos meses em que tinham peso.
+  const allPortTickers = [...new Set([
+    ...p.tickers,
+    ...Object.values(wHist).flatMap(mw => Object.keys(mw))
+  ])];
+
   const benchTicker = p.benchmark || 'BOVA11';
   const benchLabel  = benchTicker === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11 (Ibovespa)';
 
@@ -1029,13 +1041,17 @@ async function renderPerfCarteira() {
     const monthKey = new Date(ts * 1000).toISOString().slice(0, 7);
     const wMonth   = wHist[monthKey] || null;
     let wRet = 0, wSum = 0;
-    p.tickers.forEach((ticker, i) => {
+    // Usa os tickers do mês (wHist) ou os atuais como fallback.
+    // Isso garante que tickers históricos (ex: CPLE6) sejam contados
+    // nos meses em que tinham peso na carteira.
+    const mTickers = wMonth ? Object.keys(wMonth) : p.tickers;
+    mTickers.forEach(ticker => {
       const hist = data[ticker];
       if (!hist) return;
       const idx2 = hist.findIndex(d => d.date === ts);
       if (idx2 <= 0) return;
       const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close;
-      const w = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
+      const w = wMonth ? (wMonth[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
       if (!w) return;
       wRet += (w / 100) * ret;
       wSum += w / 100;
@@ -1076,8 +1092,10 @@ async function renderPerfCarteira() {
 
     // ── Sintetiza fechamentos mensais a partir dos dados diários ──────────
     // Garante que gráfico e tabela usem a mesma série de preços ajustados.
+    // Inclui allPortTickers (histórico + atuais) para que meses com tickers
+    // que já saíram da carteira sejam calculados corretamente.
     const lastDayByMon = {};
-    p.tickers.concat([benchTicker]).forEach(ticker => {
+    allPortTickers.concat([benchTicker]).forEach(ticker => {
       const pm = dailyPrices[ticker] || {};
       lastDayByMon[ticker] = {};
       Object.entries(pm).forEach(([dStr, c]) => {
@@ -1087,7 +1105,7 @@ async function renderPerfCarteira() {
       });
     });
     const synthMonthsAll = [...new Set(
-      p.tickers.flatMap(t => Object.keys(lastDayByMon[t] || {}))
+      allPortTickers.flatMap(t => Object.keys(lastDayByMon[t] || {}))
     )].sort();
     // Base = Mai/2024 (fechamento anterior à incepção); primeiro retorno = Jun/2024
     const synthMonthsFull = [...new Set([prevMonStr, ...synthMonthsAll])]
@@ -1103,12 +1121,14 @@ async function renderPerfCarteira() {
         const prevM = synthMonthsFull[i - 1];
         const wM = wHist[curM] || null;
         let wRet = 0, wSum = 0;
-        p.tickers.forEach((ticker, ti) => {
+        // Usa tickers do mês (wHist) para incluir ativos históricos corretamente.
+        const mTickers = wM ? Object.keys(wM) : p.tickers;
+        mTickers.forEach(ticker => {
           const curC  = lastDayByMon[ticker]?.[curM]?.c;
           const prevC = lastDayByMon[ticker]?.[prevM]?.c;
           if (!curC || !prevC || prevC === 0) return;
           const ret = (curC - prevC) / prevC;
-          const w = wM ? (wM[ticker] ?? 0) : p.weights[ti];
+          const w = wM ? (wM[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
           if (!w) return;
           wRet += (w / 100) * ret;
           wSum += w / 100;
@@ -1138,32 +1158,37 @@ async function renderPerfCarteira() {
         const month  = dateStr.slice(0, 7);
         const wMonth = wHist[month] || null;
 
-        // Atualiza preços conhecidos (forward-fill)
-        p.tickers.forEach(ticker => {
+        // Atualiza preços conhecidos (forward-fill) para TODOS os tickers históricos
+        allPortTickers.forEach(ticker => {
           const pm = dailyPrices[ticker] || {};
           if (pm[dateStr] != null) lastKnown[ticker] = pm[dateStr];
         });
 
         if (idx === 0) {
           // Inicializa preços de referência do dia anterior
-          p.tickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
+          allPortTickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
           return 0;
         }
 
-        // Retorno ponderado do dia vs dia anterior
-        let wRet = 0;
-        p.tickers.forEach((ticker, i) => {
+        // Retorno ponderado do dia vs dia anterior.
+        // Usa tickers do mês (wHist) para incluir ativos históricos.
+        let wRet = 0, wSumD = 0;
+        const mTickers = wMonth ? Object.keys(wMonth) : p.tickers;
+        mTickers.forEach(ticker => {
           const pToday = lastKnown[ticker];
           const pPrev  = prevPrices[ticker];
           if (!pToday || !pPrev || pPrev === 0) return;
           const dailyRet = (pToday - pPrev) / pPrev;
-          const w = wMonth ? (wMonth[ticker] ?? 0) : p.weights[i];
+          const w = wMonth ? (wMonth[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
           if (!w) return;
-          wRet += (w / 100) * dailyRet;
+          wRet  += (w / 100) * dailyRet;
+          wSumD += w / 100;
         });
+        // Normaliza pelo peso coberto (evita distorção quando ticker não tem preço)
+        if (wSumD > 0) wRet = wRet / wSumD;
 
-        // Avança os preços de referência
-        p.tickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
+        // Avança os preços de referência para todos os tickers históricos
+        allPortTickers.forEach(ticker => { prevPrices[ticker] = lastKnown[ticker]; });
 
         dailyCompound *= (1 + wRet);
         return +((dailyCompound - 1) * 100).toFixed(2);
@@ -1480,18 +1505,19 @@ async function renderRiscoCarteira() {
     const monthKey = new Date(ts * 1000).toISOString().slice(0, 7);
     const wMonth   = wHist[monthKey] || null;
     let wRet = 0, wSum = 0;
-    p.tickers.forEach((ticker, j) => {
+    const mTickers = wMonth ? Object.keys(wMonth) : p.tickers;
+    mTickers.forEach(ticker => {
       const hist = data[ticker];
       if (!hist) return;
       const idx2 = hist.findIndex(d => d.date === ts);
       if (idx2 <= 0) return;
       const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close;
-      const w   = wMonth ? (wMonth[ticker] ?? 0) : p.weights[j];
+      const w   = wMonth ? (wMonth[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
       if (!w) return;
       wRet += (w / 100) * ret;
       wSum += w / 100;
     });
-    if (wSum >= 0.5) cartPairs.push({ month: monthKey, ret: wRet });
+    if (wSum >= 0.5) cartPairs.push({ month: monthKey, ret: wSum > 0 ? wRet / wSum : wRet });
 
     if (bovaHist.length >= 2) {
       const idx2 = bovaHist.findIndex(d => d.date === ts);
@@ -2148,13 +2174,14 @@ async function renderPerf() {
     const lastLabel    = fmtMonth(lastTs);
 
     const contribs = [];
-    p.tickers.forEach((ticker, i) => {
+    const mTickersLast = wMonthLast ? Object.keys(wMonthLast) : p.tickers;
+    mTickersLast.forEach(ticker => {
       const hist = data[ticker];
       if (!hist) return;
       const idx2 = hist.findIndex(d => d.date === lastTs);
       if (idx2 <= 0) return;
       const ret = (hist[idx2].close - hist[idx2-1].close) / hist[idx2-1].close * 100;
-      const w   = wMonthLast ? (wMonthLast[ticker] ?? 0) : p.weights[i];
+      const w   = wMonthLast ? (wMonthLast[ticker] ?? 0) : (p.weights[p.tickers.indexOf(ticker)] ?? 0);
       if (!w) return;
       contribs.push({ ticker, ret: +ret.toFixed(2), peso: w, contrib: +((w/100)*ret).toFixed(3) });
     });
