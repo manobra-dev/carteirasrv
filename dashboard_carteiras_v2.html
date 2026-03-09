@@ -1058,12 +1058,16 @@ async function renderPerfCarteira() {
       relevantTickers.flatMap(t => Object.keys(dailyPrices[t] || {}))
     )].sort();
 
-    // Base do gráfico = último pregão do mês de INÍCIO da carteira.
-    // O "0%" do gráfico é o fechamento de Jun/2024, e o primeiro retorno
-    // visível (Jul/2024) é idêntico ao da tabela mensal — consistência total.
+    // Base do gráfico = último pregão de Mai/2024 (mês anterior ao início).
+    // A carteira foi montada no início de Jun/2024: o preço de referência é o
+    // fechamento de Mai/31, e Jun/2024 já tem rentabilidade real (correto).
     const portfStartMonth = localJson?.start_date || allDailyDates[0]?.slice(0, 7);
-    const lastOfStartMon = [...allDailyDates].reverse().find(d => d.slice(0, 7) === portfStartMonth);
-    const globalBase = lastOfStartMon
+    const [_psY, _psM] = portfStartMonth.split('-').map(Number);
+    const prevMonStr = _psM === 1
+      ? `${_psY - 1}-12`
+      : `${_psY}-${String(_psM - 1).padStart(2, '0')}`;
+    const lastOfPrevMon = [...allDailyDates].reverse().find(d => d.slice(0, 7) === prevMonStr);
+    const globalBase = lastOfPrevMon
       || allDailyDates.find(d => d.slice(0, 7) >= portfStartMonth)
       || allDailyDates[0];
     const useDates = allDailyDates.filter(d => d >= globalBase);
@@ -1083,10 +1087,9 @@ async function renderPerfCarteira() {
     const synthMonthsAll = [...new Set(
       p.tickers.flatMap(t => Object.keys(lastDayByMon[t] || {}))
     )].sort();
-    // Base = portfStartMonth (Jun/2024); primeiro retorno = mês seguinte (Jul/2024)
-    // Idêntico ao comportamento original da tabela mensal do yfinance
-    const synthMonthsFull = [...new Set([portfStartMonth, ...synthMonthsAll])]
-      .filter(m => m >= portfStartMonth).sort();
+    // Base = Mai/2024 (fechamento anterior à incepção); primeiro retorno = Jun/2024
+    const synthMonthsFull = [...new Set([prevMonStr, ...synthMonthsAll])]
+      .filter(m => m >= prevMonStr).sort();
 
     if (synthMonthsFull.length >= 2) {
       tableAllDates = synthMonthsFull.map(m =>
