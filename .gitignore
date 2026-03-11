@@ -1,25 +1,58 @@
-# Python
+# ─── Python ───────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 .venv/
 venv/
 env/
+.Python
 
-# Dados gerados localmente (serão recriados na nuvem)
-# dashboard_data.json  ← manter comentado: precisamos commitar o JSON inicial
+# ─── Dados gerados (recriados automaticamente pelo serve.py) ──
+# dashboard_data.json está intencionalmente commitado como snapshot
+# inicial para o deploy no Railway. Remova o comentário abaixo
+# se preferir sempre regenerar do zero:
+# dashboard_data.json
 
-# PDFs gerados
+# Cache HTTP do brapi.dev (sqlite local, pode crescer)
+http_cache.sqlite
+*.sqlite
+pipeline_outputs/
+
+# ─── PDFs gerados ─────────────────────────────────────────
 factsheet_*.pdf
 
-# Fonts baixadas automaticamente
+# ─── Fonts baixadas automaticamente ──────────────────────
 fonts/
 
-# Arquivos de sistema
+# ─── Arquivos temporários do sistema e de editor ──────────
+*.tmp
+*.temp
+*.bak
+~$*
+.~lock.*#
+*.swp
+*.swo
+*~
+
+# ─── Sistema operacional ──────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 Thumbs.db
 desktop.ini
+ehthumbs.db
 
-# Editor
+# ─── IDEs e editores ──────────────────────────────────────
 .vscode/
-*.swp
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── Segredos (nunca commitar) ────────────────────────────
+.env
+.env.local
+secrets.py
+config_local.py
