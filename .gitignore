@@ -9,10 +9,10 @@ env/
 .Python
 
 # ─── Dados gerados (recriados automaticamente pelo serve.py) ──
-# dashboard_data.json está intencionalmente commitado como snapshot
-# inicial para o deploy no Railway. Remova o comentário abaixo
-# se preferir sempre regenerar do zero:
-# dashboard_data.json
+# Cada PC gera o seu próprio dashboard_data.json via `python serve.py`.
+# O Railway também regenera na inicialização via --sem-browser.
+# Não commitar: evita conflitos entre máquinas e diffs desnecessários.
+dashboard_data.json
 
 # Cache HTTP do brapi.dev (sqlite local, pode crescer)
 http_cache.sqlite

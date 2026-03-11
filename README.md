@@ -8,35 +8,48 @@ Dashboard interativo de acompanhamento das Carteiras Temáticas (Ações e Divid
 
 ```
 Tematica/
-├── serve.py                      # Servidor local: busca dados + gera JSON + HTTP
-├── dashboard_carteiras_v2.html   # Dashboard (HTML/CSS/JS, sem build)
-├── gerar_factsheet.py            # Geração de factsheets em PDF
-├── dashboard_data.json           # JSON gerado pelo serve.py (snapshot commitado)
-├── carteiras_jan2026_v2.xlsx     # Planilha de pesos históricos (fonte de verdade)
-├── rebalanceamentos_template.xlsx# Template para novos rebalanceamentos
-├── logo_eleva_branco.png         # Logo para o factsheet
-├── requirements.txt              # Dependências Python
-├── Dockerfile                    # Build para deploy
-├── railway.toml                  # Config de deploy Railway
+├── serve.py                       # Servidor local: busca dados + gera JSON + HTTP
+├── dashboard_carteiras_v2.html    # Dashboard (HTML/CSS/JS, sem build)
+├── gerar_factsheet.py             # Geração de factsheets em PDF
+├── rebalanceamentos_template.xlsx # Fonte de verdade: pesos históricos por mês
+├── comentario.txt                 # Comentário de gestão do mês (para o factsheet)
+├── logo_eleva_branco.png          # Logo para o factsheet
+├── requirements.txt               # Dependências Python
+├── Dockerfile                     # Build para deploy (Docker)
+├── railway.toml                   # Config de deploy Railway
+├── arquivo/                       # Snapshots e arquivos históricos (não usados)
 └── README.md
 ```
 
+> `dashboard_data.json` é gerado localmente pelo serve.py e **não entra no repositório**.
+
 ---
 
-## Uso local
-
-**Pré-requisitos:** Python 3.11+, dependências em `requirements.txt`
+## Setup em um novo computador
 
 ```bash
+# 1. Clonar o repositório
+git clone <url-do-repo>
+cd Tematica
+
+# 2. Instalar dependências Python (uma vez por máquina)
 pip install -r requirements.txt
+
+# 3. Gerar os dados e abrir o dashboard
 python serve.py
 ```
+
+O `dashboard_data.json` **não está no repositório** — é gerado pelo serve.py na primeira execução e regenerado a cada rodada. Não há nenhuma configuração adicional.
+
+> **Fluxo entre PCs (casa ↔ trabalho):**
+> 1. No PC onde fez mudanças: `git push`
+> 2. No outro PC: `git pull` → `python serve.py` (atualiza dados e abre o dashboard)
 
 O serve.py irá:
 1. Buscar cotações mensais ajustadas (yfinance → fallback brapi.dev)
 2. Buscar Dividend Yield (Fundamentus → brapi → estático)
 3. Buscar CDI mensal (BCB)
-4. Salvar `dashboard_data.json`
+4. Salvar `dashboard_data.json` (local, não commitado)
 5. Abrir o dashboard em `http://localhost:8000`
 
 **Flags úteis:**
