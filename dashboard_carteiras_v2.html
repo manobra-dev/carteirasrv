@@ -261,22 +261,18 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   <div id="panel-perf" class="panel">
     <div id="load-perf" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
     <div id="wrap-perf" style="display:none">
-      <!-- Sub-abas YTD / Mês anterior / Mês vigente -->
+      <!-- Sub-abas Mês anterior / Mês vigente -->
       <div class="perf-subtabs">
-        <button class="pstab active" id="pstab-ytd"     onclick="switchPerfTab('ytd',this)">YTD</button>
-        <button class="pstab"        id="pstab-mes"     onclick="switchPerfTab('mes',this)">Mês ant.</button>
+        <button class="pstab active" id="pstab-mes"     onclick="switchPerfTab('mes',this)">Mês ant.</button>
         <button class="pstab"        id="pstab-vigente" onclick="switchPerfTab('vigente',this)">Mês vigente</button>
       </div>
-      <div id="perf-ytd-panel">
-        <div class="chart-box"><canvas id="ch-perf"></canvas></div>
-      </div>
-      <div id="perf-mes-panel" style="display:none">
+      <div id="perf-mes-panel">
         <div class="chart-box" id="ch-perf-mes-box"><canvas id="ch-perf-mes"></canvas></div>
       </div>
       <div id="perf-vigente-panel" style="display:none">
         <div class="chart-box" id="ch-perf-vigente-box"><canvas id="ch-perf-vigente"></canvas></div>
       </div>
-      <p class="note" id="note-perf">* YTD: acumulado desde Dez do ano anterior. Mês ant.: variação no mês anterior completo. Mês vigente: variação parcial do mês em curso. Barra cinza = benchmark.</p>
+      <p class="note" id="note-perf">Mês ant.: variação no mês anterior completo. Mês vigente: variação parcial do mês em curso. pp = contribuição à rentabilidade da carteira (peso × retorno). Barra cinza = benchmark.</p>
       <div id="attr-perf"></div>
     </div>
   </div>
@@ -990,7 +986,6 @@ function selectPortfolio(key) {
 function switchPerfTab(tab, btn) {
   document.querySelectorAll('.pstab').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-  document.getElementById('perf-ytd-panel').style.display     = tab === 'ytd'     ? 'block' : 'none';
   document.getElementById('perf-mes-panel').style.display     = tab === 'mes'     ? 'block' : 'none';
   document.getElementById('perf-vigente-panel').style.display = tab === 'vigente' ? 'block' : 'none';
 }
@@ -2092,13 +2087,15 @@ async function renderPerf() {
     const itemsMes = [];
     p.tickers.forEach(ticker => {
       // Exibe somente tickers com alocação no mês anterior
-      if (wHistMonths.length && getWeightIn(ticker, lcMonthStr) === 0) return;
+      const w = getWeightIn(ticker, lcMonthStr);
+      if (wHistMonths.length && w === 0) return;
 
       let base   = hasDailyPerf ? lastDailyOfMonth(ticker, baseMonthStr) : null;
       let latest = hasDailyPerf ? lastDailyOfMonth(ticker, lcMonthStr)   : null;
       if (!base || !latest) { base = monthlyClose(ticker, baseMonthStr); latest = monthlyClose(ticker, lcMonthStr); }
       if (!base || !latest) return;
-      itemsMes.push({ label: ticker, ret: +((latest - base) / base * 100).toFixed(2), isBench: false });
+      const ret = +((latest - base) / base * 100).toFixed(2);
+      itemsMes.push({ ticker, label: ticker, ret, weight: w, contrib: +(w / 100 * ret).toFixed(2), isBench: false });
     });
 
     // Benchmark do mês
@@ -2106,20 +2103,43 @@ async function renderPerf() {
       let base   = hasDailyPerf ? lastDailyOfMonth(benchTkr, baseMonthStr) : null;
       let latest = hasDailyPerf ? lastDailyOfMonth(benchTkr, lcMonthStr)   : null;
       if (!base || !latest) { base = monthlyClose(benchTkr, baseMonthStr); latest = monthlyClose(benchTkr, lcMonthStr); }
-      if (base && latest) itemsMes.push({ label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), isBench: true });
+      if (base && latest) itemsMes.push({ ticker: benchTkr, label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), weight: null, contrib: null, isBench: true });
     }
 
     if (!itemsMes.length) return;
     itemsMes.sort((a, b) => b.ret - a.ret);
 
-    const hMes = Math.max(360, itemsMes.length * 34 + 80);
+    const hMes = Math.max(360, itemsMes.length * 36 + 100);
     const boxMes = document.getElementById('ch-perf-mes-box');
     if (boxMes) boxMes.style.height = hMes + 'px';
+
+    // Plugin: label de contribuição em pp sempre à direita da linha zero
+    const ppPluginMes = {
+      id: 'ppLabelsMes',
+      afterDraw(chart) {
+        const c2 = chart.ctx, meta = chart.getDatasetMeta(0);
+        const zeroX = chart.scales.x.getPixelForValue(0);
+        c2.save();
+        c2.font = '600 10px Inter, system-ui, sans-serif';
+        c2.textAlign = 'left'; c2.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+          const it = itemsMes[i];
+          if (!it || it.isBench || it.contrib === null) return;
+          const sign = it.contrib >= 0 ? '+' : '';
+          const text = `${sign}${it.contrib.toFixed(2)}pp`;
+          c2.fillStyle = it.contrib >= 0 ? '#276749' : '#c53030';
+          // Sempre à direita do zero (nunca sobrepõe ticker no eixo Y)
+          c2.fillText(text, Math.max(bar.x, zeroX) + 5, bar.y);
+        });
+        c2.restore();
+      }
+    };
 
     destroyChart('perf-mes');
     const ctxMes = document.getElementById('ch-perf-mes').getContext('2d');
     chartInstances['perf-mes'] = new Chart(ctxMes, {
       type: 'bar',
+      plugins: [ppPluginMes],
       data: {
         labels: itemsMes.map(it => it.label),
         datasets: [{
@@ -2132,10 +2152,16 @@ async function renderPerf() {
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 52 } },
         plugins: {
           title: { display:true, text:`${p.name} — Retorno por Ativo em ${mesLabel} (%)`, font:{size:14,weight:'bold'}, color:'#2d3748', padding:{bottom:14} },
           legend: { display: false },
-          tooltip: { callbacks: { label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%` } }
+          tooltip: { callbacks: { label: c => {
+            const it = itemsMes[c.dataIndex];
+            let s = ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%`;
+            if (it && !it.isBench) s += `   |   peso: ${it.weight}%   contrib: ${it.contrib >= 0 ? '+' : ''}${it.contrib.toFixed(2)}pp`;
+            return s;
+          }}}
         },
         scales: {
           x: {
@@ -2193,14 +2219,16 @@ async function renderPerf() {
     const itemsVig = [];
     p.tickers.forEach(ticker => {
       // Exibe somente tickers com alocação no mês vigente
-      if (wHistMonths.length && getWeightIn(ticker, vigCurMonthStr) === 0) return;
+      const w = getWeightIn(ticker, vigCurMonthStr);
+      if (wHistMonths.length && w === 0) return;
 
       // Base = último fechamento do mês anterior; Latest = cotação mais recente do mês vigente
       let base   = hasDailyPerf ? lastDailyOfMonthV(ticker, vigBaseMonthStr) : null;
       let latest = hasDailyPerf ? (lastDailyOfMonthV(ticker, vigCurMonthStr) || latestDailyAny(ticker)) : null;
       if (!base || !latest) { base = monthlyCloseV(ticker, vigBaseMonthStr); latest = monthlyCloseV(ticker, vigCurMonthStr) || base; }
       if (!base || !latest || base === latest) return;
-      itemsVig.push({ label: ticker, ret: +((latest - base) / base * 100).toFixed(2), isBench: false });
+      const ret = +((latest - base) / base * 100).toFixed(2);
+      itemsVig.push({ ticker, label: ticker, ret, weight: w, contrib: +(w / 100 * ret).toFixed(2), isBench: false });
     });
 
     // Benchmark do mês vigente
@@ -2209,7 +2237,7 @@ async function renderPerf() {
       let latest = hasDailyPerf ? (lastDailyOfMonthV(benchTkr, vigCurMonthStr) || latestDailyAny(benchTkr)) : null;
       if (!base || !latest) { base = monthlyCloseV(benchTkr, vigBaseMonthStr); latest = monthlyCloseV(benchTkr, vigCurMonthStr); }
       if (base && latest && base !== latest)
-        itemsVig.push({ label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), isBench: true });
+        itemsVig.push({ label: benchLbl, ret: +((latest - base) / base * 100).toFixed(2), weight: null, contrib: null, isBench: true });
     }
 
     if (!itemsVig.length) return;
@@ -2219,10 +2247,33 @@ async function renderPerf() {
     const boxVig = document.getElementById('ch-perf-vigente-box');
     if (boxVig) boxVig.style.height = hVig + 'px';
 
+    // Plugin: label de contribuição em pp sempre à direita da linha zero
+    const ppPluginVig = {
+      id: 'ppLabelsVig',
+      afterDraw(chart) {
+        const c2 = chart.ctx, meta = chart.getDatasetMeta(0);
+        const zeroX = chart.scales.x.getPixelForValue(0);
+        c2.save();
+        c2.font = '600 10px Inter, system-ui, sans-serif';
+        c2.textAlign = 'left'; c2.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+          const it = itemsVig[i];
+          if (!it || it.isBench || it.contrib === null) return;
+          const sign = it.contrib >= 0 ? '+' : '';
+          const text = `${sign}${it.contrib.toFixed(2)}pp`;
+          c2.fillStyle = it.contrib >= 0 ? '#276749' : '#c53030';
+          // Sempre à direita do zero (nunca sobrepõe ticker no eixo Y)
+          c2.fillText(text, Math.max(bar.x, zeroX) + 5, bar.y);
+        });
+        c2.restore();
+      }
+    };
+
     destroyChart('perf-vigente');
     const ctxVig = document.getElementById('ch-perf-vigente').getContext('2d');
     chartInstances['perf-vigente'] = new Chart(ctxVig, {
       type: 'bar',
+      plugins: [ppPluginVig],
       data: {
         labels: itemsVig.map(it => it.label),
         datasets: [{
@@ -2235,10 +2286,16 @@ async function renderPerf() {
       },
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: 52 } },
         plugins: {
           title: { display:true, text:`${p.name} — Retorno por Ativo em ${vigLabel} (%)`, font:{size:14,weight:'bold'}, color:'#2d3748', padding:{bottom:14} },
           legend: { display: false },
-          tooltip: { callbacks: { label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%` } }
+          tooltip: { callbacks: { label: c => {
+            const it = itemsVig[c.dataIndex];
+            let s = ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%`;
+            if (it && !it.isBench) s += `   |   peso: ${it.weight}%   contrib: ${it.contrib >= 0 ? '+' : ''}${it.contrib.toFixed(2)}pp`;
+            return s;
+          }}}
         },
         scales: {
           x: {
