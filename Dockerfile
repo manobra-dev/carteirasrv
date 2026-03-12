@@ -19,4 +19,5 @@ COPY . .
 # Railway define a variável PORT automaticamente
 EXPOSE 8080
 
-CMD ["python3", "serve.py", "--sem-browser"]
+# --sem-yfinance: Yahoo Finance bloqueia IPs de cloud; usa brapi.dev para preços
+CMD ["python3", "serve.py", "--sem-browser", "--sem-yfinance"]
