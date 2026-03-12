@@ -1893,6 +1893,44 @@ async function renderPerf() {
 
   if (!items.length) { L.innerHTML=`<div class="err">⚠️ Sem dados suficientes.</div>`; return; }
 
+  // ── Enriquece items: isFormer + contribuição real mês a mês ──────────────
+  // isFormer = ativo que teve peso em 2026 mas já saiu da carteira (peso 0 no mês mais recente)
+  const latestPortMonth = wHistMonths.length ? wHistMonths[wHistMonths.length - 1] : null;
+
+  // Contribuição real: soma de (peso_mês × retorno_mês) para cada mês do ano em que
+  // o ativo esteve na carteira — usa preços diários (último dia do mês).
+  function calcContribYTD(ticker) {
+    const yearMons = wHistMonths.filter(m => m.startsWith(curYearStr)).sort();
+    let total = 0;
+    for (const mon of yearMons) {
+      const w = (wHistM[mon]?.[ticker] ?? 0) / 100;
+      if (!w) continue;
+      const allPrev = wHistMonths.filter(m => m < mon);
+      const prevMon = allPrev.length ? allPrev[allPrev.length - 1] : null;
+      if (!prevMon) continue;
+      const dm = dailyPricesPerf?.[ticker] || {};
+      const curDates  = Object.keys(dm).filter(d => d.startsWith(mon)).sort();
+      const prevDates = Object.keys(dm).filter(d => d.startsWith(prevMon)).sort();
+      const curP  = curDates.length  ? dm[curDates[curDates.length - 1]]  : null;
+      const prevP = prevDates.length ? dm[prevDates[prevDates.length - 1]] : null;
+      if (!curP || !prevP || prevP === 0) continue;
+      total += w * (curP - prevP) / prevP * 100;
+    }
+    return +total.toFixed(2);
+  }
+
+  items.forEach(it => {
+    if (it.isBench) { it.isFormer = false; it.weight = null; it.contrib = null; return; }
+    const curW = latestPortMonth ? (wHistM[latestPortMonth]?.[it.ticker] ?? 0) : 0;
+    it.isFormer = (curW === 0);
+    // Último peso não-nulo no ano corrente
+    const yearMons = wHistMonths.filter(m => m.startsWith(curYearStr));
+    let lastW = 0;
+    for (const m of yearMons) { const w = wHistM[m]?.[it.ticker] ?? 0; if (w) lastW = w; }
+    it.weight  = lastW;
+    it.contrib = calcContribYTD(it.ticker);
+  });
+
   // Ordena do melhor para o pior
   items.sort((a, b) => b.ret - a.ret);
 
@@ -1900,27 +1938,65 @@ async function renderPerf() {
   const tabBtn = document.getElementById('tab-perf-btn');
   if (tabBtn) tabBtn.textContent = `Rent. por Ação — ${curYear}`;
 
-  // Altura dinâmica: ~34px por barra
-  const chartHeight = Math.max(360, items.length * 34 + 80);
+  // Altura dinâmica: ~36px por barra
+  const chartHeight = Math.max(380, items.length * 36 + 100);
   const box = document.getElementById('ch-perf').parentElement;
   if (box) box.style.height = chartHeight + 'px';
 
-  const labels  = items.map(it => it.label);
-  const rets    = items.map(it => it.ret);
+  // Labels: asterisco para ativos que saíram
+  const labels = items.map(it => {
+    if (it.isBench || !it.isFormer) return it.label;
+    return it.label + ' *';
+  });
+  const rets = items.map(it => it.ret);
+
+  // Cores: translúcidas para ativos que saíram
   const bgColors = items.map(it => {
-    if (it.isBench) return 'rgba(113,128,150,0.65)';
+    if (it.isBench)    return 'rgba(113,128,150,0.65)';
+    if (it.isFormer)   return it.ret >= 0 ? 'rgba(56,161,105,0.28)' : 'rgba(229,62,62,0.28)';
     return it.ret >= 0 ? 'rgba(56,161,105,0.82)' : 'rgba(229,62,62,0.78)';
   });
   const bdColors = items.map(it => {
-    if (it.isBench) return '#718096';
+    if (it.isBench)  return '#718096';
+    if (it.isFormer) return it.ret >= 0 ? 'rgba(56,161,105,0.50)' : 'rgba(229,62,62,0.50)';
     return it.ret >= 0 ? '#276749' : '#c53030';
   });
+
+  // Plugin inline: desenha a contribuição em pp na ponta de cada barra
+  const contribLabelPlugin = {
+    id: 'contribLabelsYTD',
+    afterDraw(chart) {
+      const ctx2 = chart.ctx;
+      const meta = chart.getDatasetMeta(0);
+      ctx2.save();
+      ctx2.font = '600 10px Inter, system-ui, sans-serif';
+      ctx2.textBaseline = 'middle';
+      meta.data.forEach((bar, i) => {
+        const it = items[i];
+        if (!it || it.isBench || it.contrib === null) return;
+        const sign = it.contrib >= 0 ? '+' : '';
+        const text = `${sign}${it.contrib.toFixed(2)}pp`;
+        const baseColor = it.contrib >= 0 ? '#276749' : '#c53030';
+        ctx2.fillStyle = it.isFormer ? '#a0aec0' : baseColor;
+        const gap = 5;
+        if (it.ret >= 0) {
+          ctx2.textAlign = 'left';
+          ctx2.fillText(text, bar.x + gap, bar.y);
+        } else {
+          ctx2.textAlign = 'right';
+          ctx2.fillText(text, bar.x - gap, bar.y);
+        }
+      });
+      ctx2.restore();
+    }
+  };
 
   L.style.display='none'; W.style.display='block';
   destroyChart('perf');
   const ctx = document.getElementById('ch-perf').getContext('2d');
   chartInstances['perf'] = new Chart(ctx, {
     type: 'bar',
+    plugins: [contribLabelPlugin],
     data: {
       labels,
       datasets: [{
@@ -1937,16 +2013,30 @@ async function renderPerf() {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      layout: { padding: { right: 52 } },
       plugins: {
         title: {
           display: true,
-          text: `${p.name} — Retorno por Ativo em ${curYear} (%)`,
+          text: [
+            `${p.name} — Retorno por Ativo em ${curYear} (%)`,
+            '* Ativo retirado da carteira no decorrer do ano  |  pp = contribuição à rentabilidade da carteira'
+          ],
           font:{ size:14, weight:'bold' }, color:'#2d3748', padding:{ bottom:14 }
         },
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: c => ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%`
+            label: c => {
+              const it = items[c.dataIndex];
+              let str = ` ${c.raw > 0 ? '+' : ''}${c.raw.toFixed(2)}%`;
+              if (it && !it.isBench) {
+                str += `   |   peso: ${it.weight}%`;
+                if (it.contrib !== null)
+                  str += `   contrib: ${it.contrib >= 0 ? '+' : ''}${it.contrib.toFixed(2)}pp`;
+                if (it.isFormer) str += '   (saiu da carteira)';
+              }
+              return str;
+            }
           }
         }
       },
@@ -1961,7 +2051,7 @@ async function renderPerf() {
           ticks: { font:{ size:12, weight:'600' }, color: ctx2 => {
             const idx = ctx2.index;
             if (!items[idx]) return '#2d3748';
-            return items[idx].isBench ? '#718096' : '#2d3748';
+            return items[idx].isBench ? '#718096' : items[idx].isFormer ? '#a0aec0' : '#2d3748';
           }}
         }
       }
