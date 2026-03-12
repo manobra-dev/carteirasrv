@@ -19,5 +19,7 @@ COPY . .
 # Railway define a variável PORT automaticamente
 EXPOSE 8080
 
-# --sem-yfinance: Yahoo Finance bloqueia IPs de cloud; usa brapi.dev para preços
-CMD ["python3", "serve.py", "--sem-browser", "--sem-yfinance"]
+# --so-servir: serve o dashboard_data.json commitado sem rebuscar dados.
+# Garante que Railway e PC local mostrem os mesmos números (yfinance total return).
+# Para atualizar os dados no Railway, rode ./atualizar_railway.sh localmente.
+CMD ["python3", "serve.py", "--sem-browser", "--so-servir"]

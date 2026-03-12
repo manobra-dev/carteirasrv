@@ -11,6 +11,8 @@ Tematica/
 ├── serve.py                       # Servidor local: busca dados + gera JSON + HTTP
 ├── dashboard_carteiras_v2.html    # Dashboard (HTML/CSS/JS, sem build)
 ├── gerar_factsheet.py             # Geração de factsheets em PDF
+├── atualizar_railway.sh           # Script para atualizar dados no Railway
+├── dashboard_data.json            # Snapshot dos dados (commitado, usado pelo Railway)
 ├── rebalanceamentos_template.xlsx # Fonte de verdade: pesos históricos por mês
 ├── comentario.txt                 # Comentário de gestão do mês (para o factsheet)
 ├── logo_eleva_branco.png          # Logo para o factsheet
@@ -20,8 +22,6 @@ Tematica/
 ├── arquivo/                       # Snapshots e arquivos históricos (não usados)
 └── README.md
 ```
-
-> `dashboard_data.json` é gerado localmente pelo serve.py e **não entra no repositório**.
 
 ---
 
@@ -35,41 +35,41 @@ cd Tematica
 # 2. Instalar dependências Python (uma vez por máquina)
 pip install -r requirements.txt
 
-# 3. Gerar os dados e abrir o dashboard
+# 3. Abrir o dashboard com os dados já commitados
 python serve.py
 ```
 
-O `dashboard_data.json` **não está no repositório** — é gerado pelo serve.py na primeira execução e regenerado a cada rodada. Não há nenhuma configuração adicional.
+O repositório já inclui um `dashboard_data.json` atualizado — o dashboard abre imediatamente. Ao rodar `serve.py`, os dados são atualizados automaticamente via yfinance antes de abrir o browser.
 
 > **Fluxo entre PCs (casa ↔ trabalho):**
-> 1. No PC onde fez mudanças: `git push`
-> 2. No outro PC: `git pull` → `python serve.py` (atualiza dados e abre o dashboard)
+> 1. Rode `python serve.py` no PC atual (atualiza os dados)
+> 2. `git add dashboard_data.json && git commit -m "data: atualiza" && git push`
+> 3. No outro PC: `git pull` → `python serve.py`
 
-O serve.py irá:
-1. Buscar cotações mensais ajustadas (yfinance → fallback brapi.dev)
-2. Buscar Dividend Yield (Fundamentus → brapi → estático)
-3. Buscar CDI mensal (BCB)
-4. Salvar `dashboard_data.json` (local, não commitado)
-5. Abrir o dashboard em `http://localhost:8000`
+---
 
-**Flags úteis:**
+## Atualizar o Railway (dados e código)
 
-| Flag | Efeito |
-|------|--------|
-| `--sem-browser` | Não abre o browser automaticamente |
-| `--porta 8080` | Porta customizada (padrão: 8000) |
-| `--sem-yfinance` | Usa somente brapi.dev (sem retorno total por dividendos) |
-| `--sem-fundamentus` | Pula busca de DY do Fundamentus |
-| `--inicio 2024-01` | Data inicial customizada (YYYY-MM) |
+O Railway usa o `dashboard_data.json` commitado — **não rebusca dados sozinho**. Isso garante que Railway e PC local mostrem exatamente os mesmos números (retorno total com dividendos).
+
+Para atualizar os dados exibidos no Railway:
+
+```bash
+./atualizar_railway.sh
+```
+
+O script faz tudo: busca cotações atualizadas, commita o JSON e faz push. O Railway redeploye automaticamente em seguida.
+
+> **Quando rodar:** sempre que quiser que o Railway reflita os dados mais recentes (tipicamente uma vez por mês, após o rebalanceamento).
 
 ---
 
 ## Atualizar pesos mensais
 
-1. Abra `carteiras_jan2026_v2.xlsx`
-2. Adicione uma coluna com o mês novo (`YYYY-MM`) na aba `Ações` e/ou `Dividendos`
+1. Abra `rebalanceamentos_template.xlsx`
+2. Adicione uma coluna com o mês novo (`YYYY-MM`) nas abas `Ações` e/ou `Dividendos`
 3. Preencha os pesos (%) de cada ticker
-4. Salve o arquivo e rode `python serve.py` novamente
+4. Salve e rode `./atualizar_railway.sh` para atualizar local + Railway
 
 O serve.py lê automaticamente todos os meses da planilha. Novos tickers aparecem no dashboard sem necessidade de editar código.
 
@@ -81,15 +81,20 @@ O serve.py lê automaticamente todos os meses da planilha. Novos tickers aparece
 python gerar_factsheet.py
 ```
 
-Gera PDFs em `factsheet_acoes.pdf` e `factsheet_dividendos.pdf`. Edite o arquivo `comentario.txt` com o comentário de gestão do mês antes de gerar.
+Gera PDFs em `factsheet_acoes.pdf` e `factsheet_dividendos.pdf`. Edite `comentario.txt` com o comentário de gestão do mês antes de gerar.
 
 ---
 
-## Deploy (Railway)
+## Flags do serve.py
 
-O deploy é automático via `railway.toml`. O serve.py sobe com `--sem-browser` e regenera o JSON na inicialização. O healthcheck aponta para o HTML principal.
-
-Para deploys onde yfinance não estiver disponível (bloqueio de rede), use a flag `--sem-yfinance` no `startCommand` do `railway.toml`.
+| Flag | Efeito |
+|------|--------|
+| `--sem-browser` | Não abre o browser automaticamente |
+| `--porta 8080` | Porta customizada (padrão: 8000) |
+| `--so-servir` | Só sobe o servidor, sem rebuscar dados (usado pelo Railway) |
+| `--sem-yfinance` | Usa somente brapi.dev (price return, sem dividendos) |
+| `--sem-fundamentus` | Pula busca de DY do Fundamentus |
+| `--inicio 2024-01` | Data inicial customizada (YYYY-MM) |
 
 ---
 
@@ -105,7 +110,7 @@ Token gratuito em: https://brapi.dev/dashboard
 
 ---
 
-## Tickers com troca de código (stitch)
+## Tickers com troca de código histórico
 
 | Ticker exibido | Código antigo | Código novo | Cutoff |
 |----------------|---------------|-------------|--------|

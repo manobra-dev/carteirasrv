@@ -7,8 +7,8 @@ buildCommand = "python3 -m pip install -r requirements.txt"
 # providers e o yf.download() fica travado indefinidamente sem retornar erro.
 # Usa brapi.dev para preços (price return, sem ajuste por dividendos).
 # Para retorno total (dividendos incluídos), rode serve.py localmente sem essa flag.
-startCommand = "python serve.py --sem-browser --sem-yfinance"
+startCommand = "python serve.py --sem-browser --so-servir"
 healthcheckPath = "/dashboard_carteiras_v2.html"
-healthcheckTimeout = 300
+healthcheckTimeout = 60
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

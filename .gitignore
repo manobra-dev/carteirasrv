@@ -8,11 +8,12 @@ venv/
 env/
 .Python
 
-# ─── Dados gerados (recriados automaticamente pelo serve.py) ──
-# Cada PC gera o seu próprio dashboard_data.json via `python serve.py`.
-# O Railway também regenera na inicialização via --sem-browser.
-# Não commitar: evita conflitos entre máquinas e diffs desnecessários.
-dashboard_data.json
+# ─── Dados do dashboard ───────────────────────────────────────
+# dashboard_data.json É commitado intencionalmente.
+# Motivo: Railway usa --so-servir e serve este JSON sem rebuscar dados,
+# garantindo que Railway e PC local mostrem exatamente os mesmos números
+# (retorno total com dividendos via yfinance).
+# Para atualizar o Railway, rode: ./atualizar_railway.sh
 
 # Cache HTTP do brapi.dev (sqlite local, pode crescer)
 http_cache.sqlite
