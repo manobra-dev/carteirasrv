@@ -142,6 +142,21 @@ const PORTFOLIO_KEY = params.get('portfolio') || 'acoes';
 // ── Dados ──
 let json = null;
 
+// ── Preços (populados após JSON carregar) ──
+let dailyPrices  = {};
+let monthlyPrices = {};
+
+// Último fechamento disponível de um ticker num determinado mês (YYYY-MM).
+// Tenta dados diários primeiro; fallback para mensal.
+function lastClose(ticker, mon) {
+  if (!mon) return null;
+  const pm = dailyPrices[ticker] || {};
+  const days = Object.keys(pm).filter(d => d.startsWith(mon)).sort();
+  if (days.length) return Number(pm[days[days.length - 1]]);
+  const mp = monthlyPrices[ticker] || {};
+  return mp[mon] ? Number(mp[mon]) : null;
+}
+
 async function init() {
   try {
     const r = await fetch('./dashboard_data.json?t=' + Date.now());
@@ -182,17 +197,9 @@ function render() {
   // ── Tickers atuais ──
   const tickers = Object.keys(wh[lastMonth] || {});
 
-  // ── Preços mensais (de prices ou prices_daily) ──
-  // Constrói lastDayByMon: ticker → {YYYY-MM: último_preço_diário}
-  const dailyPrices = json.prices_daily || {};
-  const monthlyPrices = json.prices || {};
-  function lastClose(ticker, mon) {
-    const pm = dailyPrices[ticker] || {};
-    const days = Object.keys(pm).filter(d => d.startsWith(mon)).sort();
-    if (days.length) return Number(pm[days[days.length-1]]);
-    const mp = monthlyPrices[ticker] || {};
-    return mp[mon] ? Number(mp[mon]) : null;
-  }
+  // ── Popula preços no escopo do módulo (usados por lastClose global) ──
+  dailyPrices   = json.prices_daily || {};
+  monthlyPrices = json.prices       || {};
 
   // ── PILLS ──
   renderPills(wh, allMonths, compMonth, benchTkr, PORTFOLIO_KEY, portName, benchLbl);
@@ -280,7 +287,6 @@ function renderPills(wh, allMonths, compMonth, benchTkr, portKey, portName, benc
 
 // ── PERFORMANCE ACUMULADA (linha) ───────────────────
 function renderLineChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, portKey) {
-  const dailyPrices = json.prices_daily || {};
   const allTickers = [...tickers, benchTkr];
 
   // Todos os dias disponíveis no range
