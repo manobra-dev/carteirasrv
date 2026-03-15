@@ -115,11 +115,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sect{margin-bottom:10px!important}
   .two-col{gap:10px!important}
   .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
-  /* Garante que gráficos da p.2 não ultrapassem a página */
-  #ch-bar-wrap{max-height:320px!important}
-  #ch-line{max-height:220px!important}
-  #ch-dd{max-height:140px!important}
-  #ch-setor-wrap{max-height:260px!important}
+  /* Garante que gráficos não ultrapassem a página — IDs nos wrappers */
+  #ch-line-wrap{height:210px!important;max-height:210px!important}
+  #ch-dd-wrap{height:130px!important;max-height:130px!important}
+  #ch-bar-wrap{height:280px!important;max-height:280px!important}
+  #ch-setor-wrap{height:220px!important;max-height:220px!important}
 }
 </style>
 </head>
@@ -331,13 +331,13 @@ function render() {
   document.getElementById('body2').innerHTML = `
     <div class="sect">
       <div class="sect-title">Performance Acumulada — ${portName} vs ${benchShort}</div>
-      <div class="ch-wrap" style="height:240px"><canvas id="ch-line"></canvas></div>
+      <div class="ch-wrap" id="ch-line-wrap" style="height:240px"><canvas id="ch-line"></canvas></div>
       <div class="note">Retorno acumulado por composição diária com pesos mensais. Linha sólida = carteira · tracejada = benchmark.</div>
     </div>
 
     <div class="sect">
       <div class="sect-title">Drawdown Histórico — ${portName}</div>
-      <div class="ch-wrap" style="height:150px"><canvas id="ch-dd"></canvas></div>
+      <div class="ch-wrap" id="ch-dd-wrap" style="height:150px"><canvas id="ch-dd"></canvas></div>
       <div class="note">Queda percentual em relação ao pico histórico anterior da carteira (cotações diárias).</div>
     </div>
 
@@ -922,6 +922,15 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
     }
   });
 }
+
+// ── Redimensiona gráficos antes de imprimir ──
+// O Chart.js renderiza em pixel fixo; sem isso o PDF pode cortar ou distorcer.
+window.addEventListener('beforeprint', () => {
+  Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
+});
+window.addEventListener('afterprint', () => {
+  Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
+});
 
 // ── START ──
 init();
