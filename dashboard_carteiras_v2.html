@@ -599,7 +599,7 @@ async function tryLoadLocalJson() {
     }
     // Reconstrói PORTFOLIOS dinamicamente com base no weights_history do Excel
     updatePortfoliosFromJson();
-    showBannerOk(`Dados locais carregados (dashboard_data.json gerado em ${localJson.generated_at || '?'}).`);
+    // Banner de sucesso removido — estado normal não precisa de aviso visual
     // Atualiza pills do cabeçalho com retornos acumulados reais
     setTimeout(updateHeaderPills, 0);
   } catch(_) { /* silently fall through to Layer 2 */ }
