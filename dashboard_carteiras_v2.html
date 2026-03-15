@@ -1933,9 +1933,9 @@ async function renderPerf() {
   const tabBtn = document.getElementById('tab-perf-btn');
   if (tabBtn) tabBtn.textContent = `Rent. por Ação — ${curYear}`;
 
-  // Altura dinâmica: ~36px por barra
+  // Altura dinâmica: ~36px por barra (ch-perf pode não existir se aba YTD foi removida do HTML)
   const chartHeight = Math.max(380, items.length * 36 + 100);
-  const box = document.getElementById('ch-perf').parentElement;
+  const box = document.getElementById('ch-perf')?.parentElement;
   if (box) box.style.height = chartHeight + 'px';
 
   // Labels: asterisco para ativos que saíram
@@ -1987,8 +1987,11 @@ async function renderPerf() {
   };
 
   L.style.display='none'; W.style.display='block';
+  // Gráfico YTD — só renderiza se o canvas ainda existir no HTML
+  const chPerfEl = document.getElementById('ch-perf');
+  if (chPerfEl) {
   destroyChart('perf');
-  const ctx = document.getElementById('ch-perf').getContext('2d');
+  const ctx = chPerfEl.getContext('2d');
   chartInstances['perf'] = new Chart(ctx, {
     type: 'bar',
     plugins: [contribLabelPlugin],
@@ -2052,6 +2055,7 @@ async function renderPerf() {
       }
     }
   });
+  } // fim if (chPerfEl)
 
   // ── Gráfico do mês anterior ──────────────────────────
   (function renderMesAnterior() {
