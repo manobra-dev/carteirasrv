@@ -115,11 +115,13 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sect{margin-bottom:10px!important}
   .two-col{gap:10px!important}
   .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
-  /* Garante que gráficos não ultrapassem a página — IDs nos wrappers */
-  #ch-line-wrap{height:210px!important;max-height:210px!important}
-  #ch-dd-wrap{height:130px!important;max-height:130px!important}
-  #ch-bar-wrap{height:280px!important;max-height:280px!important}
-  #ch-setor-wrap{height:220px!important;max-height:220px!important}
+  /* Contém o canvas dentro do wrapper — evita que transborde sobre o texto */
+  .ch-wrap{overflow:hidden!important}
+  /* Fallback de altura caso o JS não rode (ex: impressão direta) */
+  #ch-line-wrap{height:200px!important;max-height:200px!important}
+  #ch-dd-wrap{height:115px!important;max-height:115px!important}
+  #ch-bar-wrap{height:270px!important;max-height:270px!important}
+  #ch-setor-wrap{height:210px!important;max-height:210px!important}
 }
 </style>
 </head>
@@ -924,11 +926,31 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
 }
 
 // ── Redimensiona gráficos antes de imprimir ──
-// O Chart.js renderiza em pixel fixo; sem isso o PDF pode cortar ou distorcer.
+// O Chrome/Windows não aplica o CSS de print antes do beforeprint, por isso
+// definimos as alturas diretamente via JS (mais confiável que @media print).
+const PRINT_HEIGHTS = {
+  'ch-line-wrap': 200,
+  'ch-dd-wrap':   115,
+  'ch-bar-wrap':  270,
+  'ch-setor-wrap':210,
+};
+
 window.addEventListener('beforeprint', () => {
+  Object.entries(PRINT_HEIGHTS).forEach(([id, h]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.dataset.screenH = el.style.height;   // salva altura original
+    el.style.height = h + 'px';
+  });
   Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
 });
+
 window.addEventListener('afterprint', () => {
+  Object.entries(PRINT_HEIGHTS).forEach(([id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.height = el.dataset.screenH || '';  // restaura altura original
+  });
   Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
 });
 
