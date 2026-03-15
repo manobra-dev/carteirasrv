@@ -105,7 +105,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   *,*::before,*::after{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   body{background:#fff!important}
   .toolbar{display:none!important}
-  .sheet{max-width:100%!important;margin:0!important;box-shadow:none!important;border-radius:0!important;break-after:page}
+  .sheet{max-width:100%!important;margin:0!important;box-shadow:none!important;border-radius:0!important;break-after:page;overflow:visible!important}
   .sheet:last-of-type{break-after:auto}
   .pg-body{padding:10px 12px 12px!important}
   .pg-header{padding:10px 14px!important}
@@ -115,6 +115,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sect{margin-bottom:10px!important}
   .two-col{gap:10px!important}
   .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
+  /* Garante que gráficos da p.2 não ultrapassem a página */
+  #ch-bar-wrap{max-height:320px!important}
+  #ch-line{max-height:220px!important}
+  #ch-dd{max-height:140px!important}
+  #ch-setor-wrap{max-height:260px!important}
 }
 </style>
 </head>
@@ -608,8 +613,8 @@ function renderSectorChart(lastMonth) {
   const data    = sorted.map(([,v])=>v);
   const colors  = labels.map(s=>SECTOR_COLORS[s]||'#a0aec0');
 
-  // Ajusta altura ao número de setores
-  const h = Math.max(160, labels.length*28+50);
+  // Ajusta altura ao número de setores (cap para não vazar da página)
+  const h = Math.max(160, Math.min(260, labels.length*24+40));
   document.getElementById('ch-setor-wrap').style.height = h+'px';
 
   if (chartInstances['setor']) chartInstances['setor'].destroy();
@@ -863,7 +868,8 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
 
   items.sort((a,b)=>b.ret-a.ret);
 
-  const h = Math.max(280, items.length*28+80);
+  // Cap de altura para não gerar terceira página (máx ~320px cabe na p.2)
+  const h = Math.max(220, Math.min(320, items.length*22+60));
   document.getElementById('ch-bar-wrap').style.height = h+'px';
 
   const ppPlugin = {
