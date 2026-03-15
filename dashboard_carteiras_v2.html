@@ -157,6 +157,73 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 .disclaimer{margin-top:22px;padding:12px 16px;background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;font-size:11px;color:#744210}
 @media(max-width:680px){.sector-grid{grid-template-columns:1fr}.header-top{flex-direction:column}.perf-row{justify-content:center}}
 
+/* ── PRINT / EXPORTAR PDF ─────────────────────────────── */
+#print-header{display:none}
+.print-section-title{display:none}
+@media print{
+  @page{size:A4 portrait;margin:10mm 12mm 14mm}
+  *,*::before,*::after{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  body{background:#fff!important}
+
+  /* Esconde controles de UI */
+  #data-banner,.cards,.port-tabs,.chart-tabs,
+  .perf-subtabs,#note-perf,#attr-perf,
+  #panel-sector,#panel-risco,
+  #load-perfcart,#load-perf,.loading,
+  .disclaimer{display:none!important}
+
+  /* Container */
+  .container{padding:0!important;max-width:100%!important}
+
+  /* Cabeçalho print-only */
+  #print-header{display:flex!important;justify-content:space-between;align-items:center;
+    padding:6px 0 10px;border-bottom:2px solid #2c5282;margin-bottom:14px}
+  #print-portfolio-name{font-size:15px;font-weight:700;color:#1a2d5a}
+  #print-date{font-size:11px;color:#718096;text-align:right}
+
+  /* Header principal: compacto */
+  .header{padding:10px 14px!important;break-after:avoid}
+  .perf-row{gap:5px!important}
+  .pill{min-width:80px!important;padding:5px 8px!important}
+  .pill .pval{font-size:14px!important}
+  .pill .plabel{font-size:8px!important}
+  .pill .pdiff{font-size:9px!important}
+
+  /* Notas de rodapé: discretas mas visíveis */
+  .note{display:block!important;font-size:9px;color:#a0aec0;margin-top:6px}
+
+  /* Todos os panels visíveis */
+  .panel{display:block!important;padding:14px 0!important;
+    box-shadow:none!important;border-radius:0!important;background:transparent!important}
+
+  /* Apenas Mês Anterior (não vigente parcial) */
+  #perf-vigente-panel{display:none!important}
+  #perf-mes-panel,#wrap-perf,#wrap-perfcart{display:block!important}
+
+  /* Alturas dos gráficos na impressão */
+  .chart-box{height:260px!important}
+  #ch-perf-mes-box{height:380px!important}
+
+  /* Quebras de página entre seções */
+  #panel-perfcart{break-after:page}
+  #panel-perf{break-after:page}
+  #panel-table{display:block!important}
+
+  /* Títulos de seção visíveis só na impressão */
+  .print-section-title{display:block!important;font-size:13px;font-weight:700;
+    color:#1a2d5a;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:12px}
+
+  /* Tabela de ativos */
+  #tbl-container{overflow:visible!important}
+  #tbl-container table{font-size:10px!important;width:100%;border-collapse:collapse}
+  #tbl-container th,#tbl-container td{padding:4px 6px!important}
+
+  /* Tabela de retornos mensais */
+  #rentab-table-wrap{margin-top:8px}
+  #rentab-table-wrap table{font-size:9px!important}
+  #rentab-table-wrap th,#rentab-table-wrap td{padding:3px 5px!important}
+}
+
 /* ── DATA SOURCE BANNER ── */
 #data-banner{display:none;margin-bottom:18px;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.1)}
 .banner-ok   {background:#f0fff4;border:1px solid #9ae6b4;padding:10px 16px;font-size:12px;color:#276749;display:flex;align-items:center;gap:8px;justify-content:space-between}
@@ -219,6 +286,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 <!-- ═══ MAIN ═══ -->
 <div class="container">
 
+  <!-- ═══ CABEÇALHO EXCLUSIVO PARA IMPRESSÃO ═══ -->
+  <div id="print-header">
+    <div>
+      <div id="print-portfolio-name">Carteira — Eleva Multi-Family Office</div>
+      <div id="print-subtitle" style="font-size:11px;color:#718096;margin-top:2px">Carteiras Temáticas de Renda Variável</div>
+    </div>
+    <div id="print-date" style="text-align:right"></div>
+  </div>
+
   <!-- ═══ DATA SOURCE BANNER ═══ -->
   <div id="data-banner">
     <!-- Filled by JS: .banner-ok or .banner-err -->
@@ -234,7 +310,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
     <button class="port-btn active" id="btn-acoes"     onclick="selectPortfolio('acoes')">Carteira de Ações</button>
     <button class="port-btn"        id="btn-dividendos" onclick="selectPortfolio('dividendos')">Carteira de Dividendos</button>
     <div style="flex:1"></div>
-    <button class="pdf-btn" id="btn-pdf" onclick="exportarPDF()" title="Exportar factsheet da carteira atual em PDF">
+    <button class="pdf-btn" id="btn-pdf" onclick="exportarPDF()" title="Abre o diálogo de impressão — selecione 'Salvar como PDF'">
       <span id="pdf-btn-icon">⬇</span> Exportar Factsheet PDF
     </button>
   </div>
@@ -249,6 +325,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 
   <!-- NOVO: Performance Acumulada Ponderada da Carteira -->
   <div id="panel-perfcart" class="panel active">
+    <div class="print-section-title" id="print-title-perfcart">Performance Acumulada</div>
     <div id="load-perfcart" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
     <div id="wrap-perfcart" style="display:none">
       <div class="chart-box"><canvas id="ch-perfcart"></canvas></div>
@@ -259,6 +336,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 
   <!-- EXISTENTE: Rentabilidade por Ação (individual) -->
   <div id="panel-perf" class="panel">
+    <div class="print-section-title" id="print-title-perf">Rentabilidade por Ação — Mês Anterior</div>
     <div id="load-perf" class="loading"><div class="spinner"></div><p>Carregando cotações da B3…</p></div>
     <div id="wrap-perf" style="display:none">
       <!-- Sub-abas Mês anterior / Mês vigente -->
@@ -287,6 +365,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   </div>
 
   <div id="panel-table" class="panel">
+    <div class="print-section-title">Ativos da Carteira</div>
     <div id="tbl-container"></div>
   </div>
 
@@ -2641,35 +2720,52 @@ function renderMeto() {
 })();
 
 
-// ── Exportar Factsheet PDF ───────────────────────────────────
-// Chama o endpoint /lamina/<portfolio> do serve.py que gera o PDF
-// on-demand via Python (reportlab + matplotlib) e faz download.
+// ── Exportar Factsheet PDF (via window.print) ────────────────
+// Funciona direto no browser — sem servidor, sem dependências.
+// O browser abre o diálogo de impressão já formatado para A4;
+// o usuário seleciona "Salvar como PDF".
 async function exportarPDF() {
   const btn  = document.getElementById('btn-pdf');
   const icon = document.getElementById('pdf-btn-icon');
   btn.classList.add('loading');
   icon.textContent = '⏳';
 
-  const url = `/lamina/${currentPortfolio}`;
   try {
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      const txt = await resp.text();
-      alert(`Erro ao gerar PDF: ${resp.status} — ${txt}\n\nVerifique se o serve.py está rodando.`);
-      return;
-    }
-    const blob = await resp.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    // ── 1. Garante que os gráficos necessários estão renderizados ──
+    if (!chartInstances['perfcart']) await renderPerfCarteira();
+    if (!chartInstances['perf-mes']) await renderPerf();
+    renderTable();   // síncrono
+
+    // ── 2. Aguarda animações do Chart.js ──
+    await new Promise(r => setTimeout(r, 500));
+
+    // ── 3. Preenche cabeçalho exclusivo de impressão ──
     const p = PORTFOLIOS[currentPortfolio];
-    const mes = _endMonth.replace('-', '-');
-    a.href = objUrl;
-    a.download = `factsheet_${currentPortfolio}_${mes}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(objUrl); a.remove(); }, 2000);
-  } catch (e) {
-    alert(`Erro de conexão: ${e.message}\n\nVerifique se o serve.py está rodando na porta correta.`);
+    const MESES_PRINT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const [ey, em] = _endMonth.split('-').map(Number);
+    const mesLabel = `${MESES_PRINT[em - 1]}/${ey}`;
+
+    const elName = document.getElementById('print-portfolio-name');
+    const elDate = document.getElementById('print-date');
+    if (elName) elName.textContent = `${p.name} — Eleva Multi-Family Office`;
+    if (elDate) elDate.innerHTML =
+      `Competência: <strong>${mesLabel}</strong><br>` +
+      `Gerado em: ${new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})}`;
+
+    // Atualiza título de seção de rentabilidade com o mês
+    const perfTitle = document.getElementById('print-title-perf');
+    if (perfTitle) perfTitle.textContent = `Rentabilidade por Ação — ${mesLabel}`;
+
+    // ── 4. Título da aba (vira nome sugerido do arquivo no Chrome) ──
+    const origTitle = document.title;
+    document.title = `Factsheet_${p.name.replace(/\s+/g,'_')}_${_endMonth}`;
+
+    // ── 5. Imprime ──
+    window.print();
+
+    // ── 6. Restaura título ──
+    document.title = origTitle;
+
   } finally {
     btn.classList.remove('loading');
     icon.textContent = '⬇';
