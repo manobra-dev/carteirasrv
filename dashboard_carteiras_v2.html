@@ -301,8 +301,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
   </div>
 
   <div class="cards">
-    <div class="card"><h4>Carteira de Ações</h4><div class="cv">15 ativos</div><div class="cs">Valor / Growth</div></div>
-    <div class="card" style="border-left-color:#38a169"><h4>Carteira de Dividendos</h4><div class="cv">10 ativos</div><div class="cs">Yield / Renda</div></div>
+    <div class="card"><h4>Carteira de Ações</h4><div class="cv" id="card-cv-acoes">15 ativos</div><div class="cs">Valor / Growth</div></div>
+    <div class="card" style="border-left-color:#38a169"><h4>Carteira de Dividendos</h4><div class="cv" id="card-cv-dividendos">10 ativos</div><div class="cs">Yield / Renda</div></div>
     <div class="card" style="border-left-color:#d69e2e"><h4>Benchmark</h4><div class="cv">Ibovespa · IDIV</div><div class="cs">Ações: Ibovespa · Dividendos: IDIV</div></div>
   </div>
 
@@ -745,6 +745,11 @@ function updatePortfoliosFromJson() {
     PORTFOLIOS[key].tickers = tickers;
     PORTFOLIOS[key].weights = tickers.map(t => latestWeights[t] ?? 0);
     PORTFOLIOS[key].sectors = tickers.map(t => SECTOR_MAP[t] || 'Outros');
+
+    // Atualiza card com contagem de ativos que têm peso > 0 no mês mais recente
+    const activeCount = tickers.filter(t => (latestWeights[t] ?? 0) > 0).length;
+    const cardEl = document.getElementById(`card-cv-${key}`);
+    if (cardEl) cardEl.textContent = `${activeCount} ativo${activeCount !== 1 ? 's' : ''}`;
   });
 }
 
