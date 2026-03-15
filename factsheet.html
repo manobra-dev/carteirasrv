@@ -77,6 +77,15 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
 .badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:8.5px;font-weight:600;color:#fff;white-space:nowrap}
 .dy-val{color:#276749;font-weight:600}
 
+/* ── INFO PANEL ── */
+.tbl-info{width:100%;border-collapse:collapse}
+.tbl-info td{padding:5px 8px;font-size:11px;border-bottom:1px solid #f0f4f8}
+.tbl-info tr:last-child td{border-bottom:none}
+.info-lbl{color:#718096;width:58%}
+.info-val{text-align:right;font-weight:600;color:#2d3748}
+.info-pos{color:#276749}.info-neg{color:#c53030}
+.info-sep td{height:6px;background:#f7fafc;border:none!important}
+
 /* ── CHART WRAPS ── */
 .ch-wrap{position:relative;width:100%}
 .ch-wrap canvas{display:block}
@@ -302,13 +311,13 @@ function render() {
     <div class="two-col">
       <div class="sect">
         <div class="sect-title">Exposição Setorial — ${compLabel}</div>
-        <div class="ch-wrap" id="ch-setor-wrap" style="height:210px">
+        <div class="ch-wrap" id="ch-setor-wrap" style="height:250px">
           <canvas id="ch-setor"></canvas>
         </div>
       </div>
       <div class="sect">
-        <div class="sect-title">Composição da Carteira — ${compLabel}</div>
-        <div id="tbl-ativos-wrap"></div>
+        <div class="sect-title">Dados da Carteira</div>
+        <div id="info-panel"></div>
       </div>
     </div>
   `;
@@ -341,7 +350,7 @@ function render() {
   renderStatCards(stats, tickers.length, benchShort);
   renderMonthlyTable(portName, benchShort);
   renderSectorChart(compMonth);
-  renderAtivosTable(compMonth, tickers);
+  renderInfoPanel(stats, portName, benchShort, benchLbl);
   renderLineChart(portName, benchLbl);
   renderDrawdown();
   renderBarChart(portName, benchLbl, tickers, compLabel);
@@ -535,6 +544,53 @@ function renderMonthlyTable(portName, benchShort) {
 
   html += '</tbody></table>';
   document.getElementById('tbl-mensal').innerHTML = html;
+}
+
+// ═══ PAINEL DADOS DA CARTEIRA ════════════════════
+function renderInfoPanel(s, portName, benchShort, benchLbl) {
+  // Retorno acumulado benchmark
+  let bCum = 0;
+  allMonths.filter(m => m <= compMonth).forEach(m => {
+    const br = benchMonRet(m);
+    if (br !== null) bCum = (1 + bCum/100)*(1 + br/100)*100 - 100;
+  });
+
+  const startDate = json.start_date || allMonths[0] || '—';
+  const [sy, sm] = startDate.split('-').map(Number);
+  const startLabel = sm ? `${MESES[sm-1]}/${sy}` : startDate;
+
+  const fmtPct = (v, decimals=2) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(decimals)}%`;
+  const fmtAbs = (v, decimals=2) => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(decimals)}%`;
+
+  const alpha  = (s.cumRet!=null && bCum!=null) ? s.cumRet - bCum : null;
+
+  const rows = [
+    { lbl:'Início da carteira',   val: startLabel,              plain:true },
+    { lbl:'Benchmark',            val: benchLbl,                plain:true },
+    { lbl:'Número de ativos',     val: `${s.n!=null?Object.keys(wh[compMonth]||{}).filter(t=>(wh[compMonth][t]||0)>0).length:'—'} ações`, plain:true },
+    null, // separador
+    { lbl:'Retorno acumulado',    val: fmtPct(s.cumRet),        pos: s.cumRet>=0 },
+    { lbl:`${benchShort} acumulado`, val: fmtPct(bCum),         pos: bCum>=0 },
+    { lbl:'Alpha acumulado',      val: fmtPct(alpha),           pos: alpha>=0, bold:true },
+    null,
+    { lbl:'Retorno últimos 12m',  val: fmtPct(s.ret12),         pos: s.ret12>=0 },
+    { lbl:'Volatilidade anual.',  val: s.annualVol!=null ? s.annualVol.toFixed(1)+'%' : '—', plain:true },
+    { lbl:'Melhor mês',           val: fmtAbs(s.maxMonthly),    pos: true },
+    { lbl:'Pior mês',             val: fmtAbs(s.minMonthly),    pos: s.minMonthly>=0 },
+  ];
+
+  let html = `<table class="tbl-info">`;
+  rows.forEach(r => {
+    if (!r) { html += `<tr class="info-sep"><td colspan="2"></td></tr>`; return; }
+    const valCls = r.plain ? '' : r.pos ? 'info-pos' : 'info-neg';
+    const fontW  = r.bold  ? 'font-weight:700' : '';
+    html += `<tr>
+      <td class="info-lbl">${r.lbl}</td>
+      <td class="info-val ${valCls}" style="${fontW}">${r.val}</td>
+    </tr>`;
+  });
+  html += `</table>`;
+  document.getElementById('info-panel').innerHTML = html;
 }
 
 // ═══ EXPOSIÇÃO SETORIAL ══════════════════════════
