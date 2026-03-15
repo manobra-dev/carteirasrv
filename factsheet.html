@@ -37,7 +37,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
 .pg-body{padding:14px 18px 18px}
 
 /* ── STAT CARDS ── */
-.stat-row{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:14px}
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:14px}
 .sc{background:#f7fafc;border-radius:7px;padding:9px 10px;text-align:center;border-top:3px solid #2c5282}
 .sc.green{border-top-color:#38a169}.sc.amber{border-top-color:#d69e2e}.sc.red{border-top-color:#e53e3e}.sc.purple{border-top-color:#805ad5}
 .sc-lbl{font-size:8.5px;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
@@ -279,8 +279,8 @@ function render() {
   document.getElementById('toolbar-note').innerHTML =
     `<strong>${portName}</strong> · ${compLabel} &nbsp;|&nbsp; Use <strong>Salvar como PDF</strong> no diálogo de impressão`;
 
-  // Tickers ativos (peso > 0 no mês mais recente)
-  const tickers = Object.keys(wh[lastMonth] || {}).filter(t => (wh[lastMonth][t]||0) > 0);
+  // Tickers ativos (peso > 0 no mês de competência — não inclui rebalanceamentos futuros)
+  const tickers = Object.keys(wh[compMonth] || {}).filter(t => (wh[compMonth][t]||0) > 0);
 
   // Calcula stats
   const stats = computeStats();
@@ -340,8 +340,8 @@ function render() {
   // ── Renderiza seções ──
   renderStatCards(stats, tickers.length, benchShort);
   renderMonthlyTable(portName, benchShort);
-  renderSectorChart(lastMonth);
-  renderAtivosTable(lastMonth, tickers);
+  renderSectorChart(compMonth);
+  renderAtivosTable(compMonth, tickers);
   renderLineChart(portName, benchLbl);
   renderDrawdown();
   renderBarChart(portName, benchLbl, tickers, compLabel);
@@ -457,11 +457,6 @@ function renderStatCards(s, activeCount, benchShort) {
       <div class="sc-val">${s.posMonths}<span style="font-size:10px;font-weight:400;color:#718096">/${s.n}</span></div>
       <div class="sc-sub">${(s.posMonths/s.n*100).toFixed(0)}% do total</div>
     </div>
-    <div class="sc purple">
-      <div class="sc-lbl">Acima ${benchShort}</div>
-      <div class="sc-val">${s.above}<span style="font-size:10px;font-weight:400;color:#718096">/${s.above+s.below}</span></div>
-      <div class="sc-sub">${s.above+s.below ? (s.above/(s.above+s.below)*100).toFixed(0)+'%' : '—'} dos meses</div>
-    </div>
     <div class="sc red">
       <div class="sc-lbl">Max Drawdown</div>
       <div class="sc-val" style="color:#c53030">${s.maxDD.toFixed(1)}%</div>
@@ -471,7 +466,7 @@ function renderStatCards(s, activeCount, benchShort) {
 
 // ═══ TABELA MENSAL ═══════════════════════════════
 function renderMonthlyTable(portName, benchShort) {
-  const years = [...new Set(allMonths.filter(m=>m<=compMonth).map(m=>m.slice(0,4)))].sort();
+  const years = [...new Set(allMonths.filter(m=>m<=compMonth).map(m=>m.slice(0,4)))].sort().reverse();
   const cols   = MESES.map((_,i)=>String(i+1).padStart(2,'0'));
 
   let html = `<table class="tbl-rent"><thead><tr>
@@ -595,43 +590,45 @@ function renderSectorChart(lastMonth) {
 }
 
 // ═══ TABELA DE ATIVOS ════════════════════════════
-function renderAtivosTable(lastMonth, tickers) {
-  const weights = wh[lastMonth]||{};
-  const dy      = json.dy||{};
-  const allM    = Object.keys(wh).sort();
-  const prevMon = allM.length>=2 ? allM[allM.length-2] : null;
+function renderAtivosTable(refMonth, tickers) {
+  const weights = wh[refMonth]||{};
+  // Mês anterior ao de competência para mostrar variação de peso
+  const idxRef  = allMonths.indexOf(refMonth);
+  const prevMon = idxRef > 0 ? allMonths[idxRef-1] : null;
   const prevW   = prevMon ? (wh[prevMon]||{}) : {};
 
   const rows = tickers
     .filter(t=>(weights[t]||0)>0)
-    .map(t=>({ ticker:t, sector:SECTOR_MAP[t]||'Outros', weight:weights[t]||0, prevW:prevW[t]||0, dy:dy[t]||null }))
+    .map(t=>({ ticker:t, sector:SECTOR_MAP[t]||'Outros', weight:weights[t]||0, prevW:prevW[t]||0 }))
     .sort((a,b)=>b.weight-a.weight);
 
   const total = rows.reduce((s,r)=>s+r.weight,0);
 
   let html = `<table class="tbl-ativos">
     <thead><tr>
-      <th>Ativo</th><th class="num">Peso</th><th class="num">DY 12m</th>
+      <th>Ativo</th><th class="num">Peso</th>
     </tr></thead><tbody>`;
 
   rows.forEach(r => {
-    const sc   = SECTOR_COLORS[r.sector]||'#a0aec0';
-    const delta = r.weight-r.prevW;
-    const dStr  = delta===0 ? ''
+    const sc    = SECTOR_COLORS[r.sector]||'#a0aec0';
+    const delta = r.weight - r.prevW;
+    // Novo ativo (não existia no mês anterior): destaque especial
+    const isNew = prevMon && (prevW[r.ticker]===undefined || prevW[r.ticker]===0);
+    const dStr  = isNew
+      ? `<span style="color:#2c7a7b;font-size:8px"> ★ novo</span>`
+      : delta===0 ? ''
       : delta>0 ? `<span style="color:#38a169;font-size:8.5px"> ▲+${delta}%</span>`
-                : `<span style="color:#e53e3e;font-size:8.5px"> ▼${delta}%</span>`;
+               : `<span style="color:#e53e3e;font-size:8.5px"> ▼${delta}%</span>`;
     html += `<tr>
       <td><strong>${r.ticker}</strong>${dStr}<br>
         <span class="badge" style="background:${sc};font-size:8px">${r.sector}</span></td>
       <td class="num">${r.weight}%</td>
-      <td class="num ${r.dy?'dy-val':''}">${r.dy?r.dy.toFixed(1)+'%':'—'}</td>
     </tr>`;
   });
 
   html += `<tr class="tr-total">
     <td><strong>TOTAL</strong></td>
     <td class="num"><strong>${total}%</strong></td>
-    <td class="num"></td>
   </tr></tbody></table>`;
 
   document.getElementById('tbl-ativos-wrap').innerHTML = html;
