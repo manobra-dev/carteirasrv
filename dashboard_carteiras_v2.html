@@ -2720,56 +2720,11 @@ function renderMeto() {
 })();
 
 
-// ── Exportar Factsheet PDF (via window.print) ────────────────
-// Funciona direto no browser — sem servidor, sem dependências.
-// O browser abre o diálogo de impressão já formatado para A4;
-// o usuário seleciona "Salvar como PDF".
-async function exportarPDF() {
-  const btn  = document.getElementById('btn-pdf');
-  const icon = document.getElementById('pdf-btn-icon');
-  btn.classList.add('loading');
-  icon.textContent = '⏳';
-
-  try {
-    // ── 1. Garante que os gráficos necessários estão renderizados ──
-    if (!chartInstances['perfcart']) await renderPerfCarteira();
-    if (!chartInstances['perf-mes']) await renderPerf();
-    renderTable();   // síncrono
-
-    // ── 2. Aguarda animações do Chart.js ──
-    await new Promise(r => setTimeout(r, 500));
-
-    // ── 3. Preenche cabeçalho exclusivo de impressão ──
-    const p = PORTFOLIOS[currentPortfolio];
-    const MESES_PRINT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const [ey, em] = _endMonth.split('-').map(Number);
-    const mesLabel = `${MESES_PRINT[em - 1]}/${ey}`;
-
-    const elName = document.getElementById('print-portfolio-name');
-    const elDate = document.getElementById('print-date');
-    if (elName) elName.textContent = `${p.name} — Eleva Multi-Family Office`;
-    if (elDate) elDate.innerHTML =
-      `Competência: <strong>${mesLabel}</strong><br>` +
-      `Gerado em: ${new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'})}`;
-
-    // Atualiza título de seção de rentabilidade com o mês
-    const perfTitle = document.getElementById('print-title-perf');
-    if (perfTitle) perfTitle.textContent = `Rentabilidade por Ação — ${mesLabel}`;
-
-    // ── 4. Título da aba (vira nome sugerido do arquivo no Chrome) ──
-    const origTitle = document.title;
-    document.title = `Factsheet_${p.name.replace(/\s+/g,'_')}_${_endMonth}`;
-
-    // ── 5. Imprime ──
-    window.print();
-
-    // ── 6. Restaura título ──
-    document.title = origTitle;
-
-  } finally {
-    btn.classList.remove('loading');
-    icon.textContent = '⬇';
-  }
+// ── Exportar Factsheet PDF ───────────────────────────────────
+// Abre factsheet.html em nova aba — página dedicada, todos os
+// gráficos visíveis desde o início → impressão perfeita.
+function exportarPDF() {
+  window.open(`./factsheet.html?portfolio=${currentPortfolio}`, '_blank');
 }
 
 renderChart('perfcart');

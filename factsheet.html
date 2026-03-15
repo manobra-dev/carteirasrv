@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Factsheet — Eleva MFO</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;font-size:13px}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,#1a2d5a,#2c5282 55%,#2b6cb0);color:#fff;padding:14px 28px 12px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.logo-img{height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}
+.logo-fallback{display:none;font-size:14px;font-weight:700;letter-spacing:.5px}
+.header-info{text-align:right}
+.h-portfolio{font-size:16px;font-weight:700;letter-spacing:.3px}
+.h-sub{font-size:10px;opacity:.72;margin-top:2px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
+.pill{background:rgba(255,255,255,.14);border-radius:10px;padding:6px 12px;text-align:center;min-width:90px}
+.pill .pl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;opacity:.7}
+.pill .pv{font-size:15px;font-weight:700;margin-top:1px}
+.pill .pd{font-size:9px;margin-top:2px;opacity:.9}
+.pos{color:#68d391}.neg{color:#fc8181}.neut{color:#fbd38d}
+.dpos{color:#9ae6b4}.dneg{color:#fc8181}.dneut{color:#fbd38d}
+
+/* ── TOOLBAR (hidden on print) ── */
+.toolbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 28px;display:flex;align-items:center;gap:12px}
+.btn-print{display:flex;align-items:center;gap:7px;padding:8px 18px;border:2px solid #2c5282;background:#2c5282;color:#fff;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;transition:all .15s}
+.btn-print:hover{background:#1a2d5a;border-color:#1a2d5a}
+.toolbar-note{font-size:11px;color:#718096}
+
+/* ── BODY ── */
+.page{max-width:860px;margin:0 auto;padding:20px 24px}
+
+/* ── SECTION ── */
+.section{background:#fff;border-radius:10px;padding:20px 22px;margin-bottom:18px;box-shadow:0 1px 8px rgba(0,0,0,.07)}
+.section-title{font-size:12px;font-weight:700;color:#1a2d5a;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid #e8edf5;padding-bottom:7px;margin-bottom:14px}
+
+/* ── CHART BOXES ── */
+.chart-wrap{position:relative;width:100%}
+.chart-wrap canvas{display:block}
+.note{font-size:10px;color:#a0aec0;margin-top:8px;font-style:italic;line-height:1.5}
+
+/* ── MONTHLY TABLE ── */
+.tbl-rent{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:14px}
+.tbl-rent th{background:#f7fafc;color:#718096;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.4px;padding:5px 6px;text-align:center;border-bottom:2px solid #e2e8f0}
+.tbl-rent td{padding:4px 6px;text-align:center;border-bottom:1px solid #f0f4f8}
+.tbl-rent tr:last-child td{border-bottom:none}
+.tbl-rent .td-year{font-weight:700;text-align:left;color:#2d3748}
+.tbl-rent .td-label{text-align:left;font-size:10px;color:#718096;padding-left:10px}
+.tbl-rent .td-pos{color:#276749;font-weight:600}
+.tbl-rent .td-neg{color:#c53030;font-weight:600}
+.tbl-rent .td-diff-pos{color:#38a169;font-size:10px}
+.tbl-rent .td-diff-neg{color:#e53e3e;font-size:10px}
+.tbl-rent .td-acc{font-weight:700;color:#2c5282}
+
+/* ── ATIVOS TABLE ── */
+.tbl-ativos{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl-ativos th{background:#f7fafc;color:#718096;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.4px;padding:6px 10px;text-align:left;border-bottom:2px solid #e2e8f0}
+.tbl-ativos th.num{text-align:right}
+.tbl-ativos td{padding:6px 10px;border-bottom:1px solid #f7fafc;vertical-align:middle}
+.tbl-ativos td.num{text-align:right;font-weight:600}
+.tbl-ativos tr:last-child td{border-bottom:none;font-weight:700}
+.tbl-ativos tr:hover td{background:#f7fafc}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.dy-val{color:#276749;font-weight:600}
+.liq-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:#ebf4ff;color:#2c5282;font-weight:600}
+
+/* ── FOOTER ── */
+.footer{font-size:9.5px;color:#a0aec0;text-align:center;padding:14px 0 8px;border-top:1px solid #e2e8f0;margin-top:6px;line-height:1.6}
+
+/* ── LOADING ── */
+.loading-msg{text-align:center;padding:60px 0;color:#a0aec0;font-size:14px}
+
+/* ══════════════════════════════════════
+   PRINT STYLES
+══════════════════════════════════════ */
+@media print{
+  @page{size:A4 portrait;margin:8mm 10mm 12mm}
+  *,*::before,*::after{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
+  body{background:#fff!important}
+  .toolbar{display:none!important}
+  .page{padding:0!important;max-width:100%!important}
+  .section{box-shadow:none!important;border:1px solid #e8edf5!important;margin-bottom:10px!important;padding:12px 14px!important;break-inside:avoid}
+  .header{padding:10px 16px!important}
+  .logo-img{height:38px!important}
+  .section-perf{break-after:page}
+  .footer{border-top:1px solid #e2e8f0}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div>
+    <img src="logo_eleva_branco.png" alt="Eleva MFO" class="logo-img"
+         onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
+    <span id="logo-fallback" class="logo-fallback">Eleva Multi-Family Office</span>
+  </div>
+  <div class="header-info">
+    <div class="h-portfolio" id="h-portfolio">Carteiras Temáticas de Renda Variável</div>
+    <div class="h-sub" id="h-sub">Competência: —</div>
+    <div class="pills" id="h-pills"></div>
+  </div>
+</div>
+
+<!-- ═══ TOOLBAR ═══ -->
+<div class="toolbar">
+  <button class="btn-print" onclick="window.print()">⬇ Salvar como PDF</button>
+  <span class="toolbar-note" id="toolbar-note">Clique em "Salvar como PDF" → no diálogo de impressão, selecione <strong>Salvar como PDF</strong></span>
+</div>
+
+<!-- ═══ CONTENT ═══ -->
+<div class="page">
+  <div id="content"><div class="loading-msg">⏳ Carregando dados…</div></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  Factsheet — Eleva MFO
+//  Lê dashboard_data.json e renderiza factsheet
+// ─────────────────────────────────────────────
+
+const SECTOR_COLORS = {
+  'Financeiro':'#3182ce','Energia Elétrica':'#d69e2e','Mineração':'#718096',
+  'Saneamento':'#38a169','Saúde':'#e53e3e','Índices':'#805ad5',
+  'Indústria':'#dd6b20','Petróleo & Gás':'#2c7a7b','Agroindústria':'#276749',
+  'Siderurgia':'#744210','Shoppings':'#b7791f','Seguros':'#2b6cb0',
+  'Aviação':'#553c9a','Petroquímica':'#2d3748','Outros':'#a0aec0'
+};
+const BADGE_TEXT_DARK = new Set(['Mineração','Índices','Petróleo & Gás','Siderurgia','Outros','Aviação','Petroquímica']);
+
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+let chartInstances = {};
+
+// ── Lê portfolio da URL ──
+const params = new URLSearchParams(location.search);
+const PORTFOLIO_KEY = params.get('portfolio') || 'acoes';
+
+// ── Dados ──
+let json = null;
+
+async function init() {
+  try {
+    const r = await fetch('./dashboard_data.json?t=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    json = await r.json();
+  } catch(e) {
+    document.getElementById('content').innerHTML =
+      `<div style="text-align:center;padding:60px;color:#c53030">
+        ⚠️ Não foi possível carregar os dados.<br>
+        <small style="color:#718096">${e.message}</small></div>`;
+    return;
+  }
+  render();
+}
+
+function render() {
+  const wh  = json.weights_history?.[PORTFOLIO_KEY] || {};
+  const allMonths = Object.keys(wh).sort();
+  const lastMonth = allMonths[allMonths.length - 1];
+
+  // ── Nome e competência ──
+  const portName = PORTFOLIO_KEY === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
+  const benchTkr = PORTFOLIO_KEY === 'acoes' ? 'BOVA11' : 'DIVO11';
+  const benchLbl = PORTFOLIO_KEY === 'acoes' ? 'BOVA11 (Ibovespa)' : 'IDIV (DIVO11)';
+
+  // Competência = último mês FECHADO (não o mês corrente parcial)
+  const today = new Date();
+  const thisMonth = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const compMonth = lastMonth < thisMonth ? lastMonth : allMonths[allMonths.length - 2] || lastMonth;
+  const [cy, cm] = compMonth.split('-').map(Number);
+  const compLabel = `${MESES[cm-1]}/${cy}`;
+  document.title = `Factsheet_${portName.replace(/\s+/g,'_')}_${compMonth}`;
+  document.getElementById('h-portfolio').textContent = `${portName} — Eleva Multi-Family Office`;
+  document.getElementById('h-sub').textContent = `Competência: ${compLabel} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`;
+  document.getElementById('toolbar-note').innerHTML =
+    `<strong>${portName}</strong> — ${compLabel} &nbsp;|&nbsp; Clique em "Salvar como PDF" no diálogo de impressão`;
+
+  // ── Tickers atuais ──
+  const tickers = Object.keys(wh[lastMonth] || {});
+
+  // ── Preços mensais (de prices ou prices_daily) ──
+  // Constrói lastDayByMon: ticker → {YYYY-MM: último_preço_diário}
+  const dailyPrices = json.prices_daily || {};
+  const monthlyPrices = json.prices || {};
+  function lastClose(ticker, mon) {
+    const pm = dailyPrices[ticker] || {};
+    const days = Object.keys(pm).filter(d => d.startsWith(mon)).sort();
+    if (days.length) return Number(pm[days[days.length-1]]);
+    const mp = monthlyPrices[ticker] || {};
+    return mp[mon] ? Number(mp[mon]) : null;
+  }
+
+  // ── PILLS ──
+  renderPills(wh, allMonths, compMonth, benchTkr, PORTFOLIO_KEY, portName, benchLbl);
+
+  // ── BUILD HTML ──
+  document.getElementById('content').innerHTML = `
+    <div class="section section-perf" id="sec-perf">
+      <div class="section-title">Performance Acumulada</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="ch-line"></canvas></div>
+      <div class="note">* Retorno acumulado ponderado pelos pesos da carteira com cotações diárias. Linha tracejada = benchmark.</div>
+      <div id="tbl-mensal"></div>
+    </div>
+
+    <div class="section" id="sec-rent">
+      <div class="section-title" id="rent-title">Rentabilidade por Ação — ${compLabel}</div>
+      <div class="chart-wrap" id="ch-bar-wrap" style="height:420px"><canvas id="ch-bar"></canvas></div>
+      <div class="note">pp = contribuição à rentabilidade da carteira (peso × retorno). Barra cinza = benchmark.</div>
+    </div>
+
+    <div class="section" id="sec-ativos">
+      <div class="section-title">Composição da Carteira — ${compLabel}</div>
+      <div id="tbl-ativos-wrap"></div>
+      <p class="note" style="margin-top:10px">Pesos referentes a ${compLabel}. DY = Dividend Yield dos últimos 12 meses. Fontes: Fundamentus, brapi.dev.</p>
+    </div>
+
+    <div class="footer">
+      ⚠ Aviso Legal: Dashboard exclusivo para uso interno. Não constitui recomendação de investimento.
+      Rentabilidades passadas não garantem resultados futuros. DY indicativo baseado nos últimos 12 meses disponíveis.<br>
+      Gerado em ${new Date().toLocaleString('pt-BR')} · Dados: ${json.generated_at || '—'}
+    </div>
+  `;
+
+  // Render cada seção
+  renderLineChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, PORTFOLIO_KEY);
+  renderMonthlyTable(wh, allMonths, compMonth, benchTkr, tickers, PORTFOLIO_KEY);
+  renderBarChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, PORTFOLIO_KEY);
+  renderAtivosTable(wh, lastMonth, tickers);
+}
+
+// ── PILLS ──────────────────────────────────────────
+function renderPills(wh, allMonths, compMonth, benchTkr, portKey, portName, benchLbl) {
+  const prevM = (() => {
+    const idx = allMonths.indexOf(compMonth);
+    return idx > 0 ? allMonths[idx-1] : null;
+  })();
+
+  function portReturn(mon, prevMon) {
+    if (!mon || !prevMon) return null;
+    const w = wh[mon] || {};
+    let ret = 0, tot = 0;
+    Object.entries(w).forEach(([t, wt]) => {
+      const c = lastClose(t, mon), p = lastClose(t, prevMon);
+      if (c && p && wt > 0) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
+    });
+    return tot > 0 ? ret/tot : null;
+  }
+
+  const portRet = portReturn(compMonth, prevM);
+  const benchC  = lastClose(benchTkr, compMonth);
+  const benchP  = lastClose(benchTkr, prevM);
+  const benchRet = (benchC && benchP) ? (benchC-benchP)/benchP*100 : null;
+  const diff = (portRet != null && benchRet != null) ? portRet - benchRet : null;
+
+  function fmt(v) { return v == null ? '—' : `${v>=0?'+':''}${v.toFixed(2)}%`; }
+  function cls(v) { return v == null ? 'neut' : v >= 0 ? 'pos' : 'neg'; }
+  function dcls(v) { return v == null ? 'dneut' : v >= 0 ? 'dpos' : 'dneg'; }
+
+  const [cy, cm] = compMonth.split('-').map(Number);
+  const lbl = `${MESES[cm-1]}/${String(cy).slice(2)}`;
+  const bLabel = benchTkr === 'DIVO11' ? 'IDIV' : 'IBOVESPA';
+
+  document.getElementById('h-pills').innerHTML = `
+    <div class="pill">
+      <div class="pl">${portName.split(' ').slice(-1)[0]}</div>
+      <div class="pv ${cls(portRet)}">${fmt(portRet)}</div>
+      <div class="pl">${lbl}</div>
+      ${diff!=null?`<div class="pd ${dcls(diff)}">Δ ${bLabel}: ${fmt(diff)}</div>`:''}
+    </div>
+    <div class="pill">
+      <div class="pl">${bLabel}</div>
+      <div class="pv neut">${fmt(benchRet)}</div>
+      <div class="pl">${lbl}</div>
+    </div>`;
+}
+
+// ── PERFORMANCE ACUMULADA (linha) ───────────────────
+function renderLineChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, portKey) {
+  const dailyPrices = json.prices_daily || {};
+  const allTickers = [...tickers, benchTkr];
+
+  // Todos os dias disponíveis no range
+  const allDays = [...new Set(
+    allTickers.flatMap(t => Object.keys(dailyPrices[t] || {}))
+  )].sort();
+  if (!allDays.length) return;
+
+  // Base = último dia do mês anterior ao início da carteira
+  const startMon = allMonths[0];
+  const [sy, sm] = startMon.split('-').map(Number);
+  const prevSt = sm===1 ? `${sy-1}-12` : `${sy}-${String(sm-1).padStart(2,'0')}`;
+  const baseDay = [...allDays].reverse().find(d => d.slice(0,7) === prevSt) || allDays[0];
+  const useDays = allDays.filter(d => d >= baseDay);
+
+  // Retorno acumulado ponderado
+  function portAccum(day) {
+    const mon = day.slice(0,7);
+    const w = wh[mon] || wh[allMonths.filter(m=>m<=mon).pop()] || {};
+    let accRet = 0, wSum = 0;
+    Object.entries(w).forEach(([t, wt]) => {
+      if (!wt) return;
+      const dp = dailyPrices[t] || {};
+      const base = dp[baseDay]; const cur = dp[day];
+      if (base && cur) { accRet += (wt/100)*(Number(cur)-Number(base))/Number(base)*100; wSum += wt/100; }
+    });
+    return wSum > 0 ? accRet/wSum : null;
+  }
+
+  function benchAccum(day) {
+    const dp = dailyPrices[benchTkr] || {};
+    const base = dp[baseDay]; const cur = dp[day];
+    return (base && cur) ? (Number(cur)-Number(base))/Number(base)*100 : null;
+  }
+
+  const labels = useDays.map(d => {
+    const dt = new Date(d+'T12:00:00Z');
+    return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  });
+
+  // Reduz pontos (máx 300 para não sobrecarregar)
+  const step = Math.max(1, Math.floor(useDays.length/300));
+  const sampDays = useDays.filter((_,i) => i%step===0 || i===useDays.length-1);
+  const sampLabels = sampDays.map(d => {
+    const dt = new Date(d+'T12:00:00Z');
+    return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  });
+
+  const portData  = sampDays.map(portAccum);
+  const benchData = sampDays.map(benchAccum);
+
+  const portName = PORTFOLIO_KEY === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
+
+  if (chartInstances['line']) chartInstances['line'].destroy();
+  const ctx = document.getElementById('ch-line').getContext('2d');
+  chartInstances['line'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: sampLabels,
+      datasets: [
+        { label: portName, data: portData,
+          borderColor:'#2c5282', backgroundColor:'rgba(44,82,130,.08)',
+          borderWidth:2, pointRadius:0, fill:true, tension:.3 },
+        { label: benchLbl, data: benchData,
+          borderColor:'#a0aec0', borderDash:[5,4],
+          borderWidth:1.5, pointRadius:0, fill:false, tension:.3 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:11},usePointStyle:true}},
+        tooltip:{callbacks:{label:c=>` ${c.raw!=null?c.raw.toFixed(2):'—'}%`}}
+      },
+      scales:{
+        x:{ticks:{font:{size:9},maxTicksLimit:12},grid:{color:'#f0f4f8'}},
+        y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'#f0f4f8'}}
+      }
+    }
+  });
+}
+
+// ── TABELA MENSAL ───────────────────────────────────
+function renderMonthlyTable(wh, allMonths, compMonth, benchTkr, tickers, portKey) {
+  const portName = portKey === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
+  const benchName = benchTkr === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11 (Ibovespa)';
+
+  // Calcula retorno mensal da carteira ponderado
+  function portMonRet(mon) {
+    const idx = allMonths.indexOf(mon);
+    if (idx < 1) return null;
+    const prevMon = allMonths[idx-1];
+    const w = wh[mon] || {};
+    let ret = 0, tot = 0;
+    Object.entries(w).forEach(([t, wt]) => {
+      if (!wt) return;
+      const c = lastClose(t, mon), p = lastClose(t, prevMon);
+      if (c && p) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
+    });
+    return tot > 0 ? ret/tot : null;
+  }
+
+  function benchMonRet(mon) {
+    const idx = allMonths.indexOf(mon);
+    if (idx < 1) return null;
+    const prevMon = allMonths[idx-1];
+    const c = lastClose(benchTkr, mon), p = lastClose(benchTkr, prevMon);
+    return (c && p) ? (c-p)/p*100 : null;
+  }
+
+  // Agrupa por ano
+  const years = [...new Set(allMonths.filter(m=>m<=compMonth).map(m=>m.slice(0,4)))].sort();
+  const colMonths = MESES.map((_,i)=>String(i+1).padStart(2,'0'));
+
+  let html = `<table class="tbl-rent"><thead><tr>
+    <th style="width:45px">ANO</th><th style="text-align:left;padding-left:10px;width:130px">Série</th>`;
+  colMonths.forEach(m => html += `<th>${MESES[+m-1]}</th>`);
+  html += `<th>No Ano</th><th>Acum.</th></tr></thead><tbody>`;
+
+  years.forEach(yr => {
+    const yrMonths = allMonths.filter(m=>m.startsWith(yr)&&m<=compMonth);
+    if (!yrMonths.length) return;
+
+    // Retornos anuais acumulados
+    let portAccYr = 0, benchAccYr = 0;
+    yrMonths.forEach(m => {
+      const pr = portMonRet(m); const br = benchMonRet(m);
+      if (pr != null) portAccYr = (1+portAccYr/100)*(1+pr/100)*100-100;
+      if (br != null) benchAccYr = (1+benchAccYr/100)*(1+br/100)*100-100;
+    });
+
+    // Acumulado total até fim do ano
+    const allUntil = allMonths.filter(m=>m<=`${yr}-12`&&m<=compMonth);
+    let portAccTot = 0, benchAccTot = 0;
+    allUntil.forEach(m => {
+      const pr = portMonRet(m); const br = benchMonRet(m);
+      if (pr != null) portAccTot = (1+portAccTot/100)*(1+pr/100)*100-100;
+      if (br != null) benchAccTot = (1+benchAccTot/100)*(1+br/100)*100-100;
+    });
+
+    function cell(v, cls2='') {
+      if (v==null) return `<td>—</td>`;
+      const c = v>=0?'td-pos':'td-neg';
+      return `<td class="${c} ${cls2}">${v>=0?'+':''}${v.toFixed(2)}%</td>`;
+    }
+
+    // Linha carteira
+    html += `<tr><td class="td-year" rowspan="3">${yr}</td><td class="td-label">${portName}</td>`;
+    colMonths.forEach(m => {
+      const mon = `${yr}-${m}`;
+      const pr = portMonRet(mon);
+      html += (yrMonths.includes(mon) && pr!=null) ? cell(pr) : `<td style="color:#cbd5e0">—</td>`;
+    });
+    html += cell(portAccYr) + cell(portAccTot,'td-acc') + '</tr>';
+
+    // Linha benchmark
+    html += `<tr><td class="td-label" style="color:#a0aec0">${benchName}</td>`;
+    colMonths.forEach(m => {
+      const mon = `${yr}-${m}`;
+      const br = benchMonRet(mon);
+      html += (yrMonths.includes(mon) && br!=null) ? cell(br) : `<td style="color:#cbd5e0">—</td>`;
+    });
+    html += cell(benchAccYr) + cell(benchAccTot) + '</tr>';
+
+    // Linha diferença
+    html += `<tr style="background:#f7fafc"><td class="td-label" style="color:#718096">Δ vs Benchmark</td>`;
+    colMonths.forEach(m => {
+      const mon = `${yr}-${m}`;
+      const pr = portMonRet(mon); const br = benchMonRet(mon);
+      const d = (pr!=null&&br!=null) ? pr-br : null;
+      if (!yrMonths.includes(mon)||d==null) { html+=`<td style="color:#cbd5e0">—</td>`; return; }
+      html += `<td class="${d>=0?'td-diff-pos':'td-diff-neg'}">${d>=0?'+':''}${d.toFixed(2)}%</td>`;
+    });
+    const diffYr = portAccYr-benchAccYr;
+    const diffTot = portAccTot-benchAccTot;
+    html += `<td class="${diffYr>=0?'td-diff-pos':'td-diff-neg'}">${diffYr>=0?'+':''}${diffYr.toFixed(2)}%</td>`;
+    html += `<td class="${diffTot>=0?'td-diff-pos':'td-diff-neg'} td-acc">${diffTot>=0?'+':''}${diffTot.toFixed(2)}%</td></tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tbl-mensal').innerHTML = html;
+}
+
+// ── RENTABILIDADE POR AÇÃO (barras) ─────────────────
+function renderBarChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, portKey) {
+  // Mês anterior completo
+  const idx = allMonths.indexOf(compMonth);
+  const mesAnt = idx > 0 ? allMonths[idx-1] : null;
+  const mesBase = mesAnt && allMonths.indexOf(mesAnt) > 0 ? allMonths[allMonths.indexOf(mesAnt)-1] : null;
+  if (!mesAnt || !mesBase) return;
+
+  const wMesAnt = wh[mesAnt] || {};
+  const items = [];
+
+  tickers.forEach(ticker => {
+    const w = wMesAnt[ticker] ?? 0;
+    if (!w) return;
+    const c = lastClose(ticker, mesAnt), p = lastClose(ticker, mesBase);
+    if (!c || !p) return;
+    const ret = (c-p)/p*100;
+    items.push({ label:ticker, ret:+ret.toFixed(2), weight:w, contrib:+(w/100*ret).toFixed(2), isBench:false });
+  });
+
+  // Benchmark
+  const bc = lastClose(benchTkr, mesAnt), bp = lastClose(benchTkr, mesBase);
+  if (bc && bp) items.push({ label:benchLbl, ret:+((bc-bp)/bp*100).toFixed(2), weight:null, contrib:null, isBench:true });
+
+  items.sort((a,b) => b.ret-a.ret);
+
+  // Altura dinâmica
+  const h = Math.max(340, items.length * 34 + 80);
+  document.getElementById('ch-bar-wrap').style.height = h + 'px';
+
+  // Plugin pp
+  const ppPlugin = {
+    id:'ppLabels',
+    afterDraw(chart) {
+      const c2=chart.ctx, meta=chart.getDatasetMeta(0);
+      const zeroX=chart.scales.x.getPixelForValue(0);
+      c2.save(); c2.font='600 10px Segoe UI,Arial,sans-serif';
+      c2.textAlign='left'; c2.textBaseline='middle';
+      meta.data.forEach((bar,i) => {
+        const it=items[i];
+        if (!it||it.isBench||it.contrib==null) return;
+        const sign=it.contrib>=0?'+':'';
+        c2.fillStyle=it.contrib>=0?'#276749':'#c53030';
+        c2.fillText(`${sign}${it.contrib.toFixed(2)}pp`, Math.max(bar.x,zeroX)+5, bar.y);
+      });
+      c2.restore();
+    }
+  };
+
+  const [, mesM] = mesAnt.split('-').map(Number);
+  const mesLabel = `${MESES[mesM-1]}/${mesAnt.slice(0,4)}`;
+  document.getElementById('rent-title').textContent = `Rentabilidade por Ação — ${mesLabel}`;
+
+  if (chartInstances['bar']) chartInstances['bar'].destroy();
+  const ctx = document.getElementById('ch-bar').getContext('2d');
+  chartInstances['bar'] = new Chart(ctx, {
+    type:'bar', plugins:[ppPlugin],
+    data:{
+      labels: items.map(it=>it.label),
+      datasets:[{
+        label:`Retorno ${mesLabel} (%)`,
+        data: items.map(it=>it.ret),
+        backgroundColor: items.map(it=>it.isBench?'rgba(113,128,150,.65)':it.ret>=0?'rgba(56,161,105,.82)':'rgba(229,62,62,.78)'),
+        borderColor:     items.map(it=>it.isBench?'#718096':it.ret>=0?'#276749':'#c53030'),
+        borderWidth:1.5, borderRadius:4, borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false,
+      layout:{padding:{right:52}},
+      plugins:{
+        title:{display:false}, legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const it=items[c.dataIndex];
+          let s=` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`;
+          if (it&&!it.isBench) s+=`   |   peso: ${it.weight}%   contrib: ${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`;
+          return s;
+        }}}
+      },
+      scales:{
+        x:{grid:{color:'#edf2f7'},ticks:{callback:v=>v+'%',font:{size:10}},
+           title:{display:true,text:`Retorno ${mesLabel} (%)`,font:{size:11},color:'#718096'}},
+        y:{grid:{display:false},ticks:{font:{size:12,weight:'600'},color:ctx2=>{
+          const idx2=ctx2.index;
+          return (!items[idx2]||items[idx2].isBench)?'#718096':'#2d3748';
+        }}}
+      }
+    }
+  });
+}
+
+// ── TABELA DE ATIVOS ────────────────────────────────
+function renderAtivosTable(wh, lastMonth, tickers) {
+  const SECTOR_MAP = {
+    'BPAC11':'Financeiro','BBAS3':'Financeiro','ITUB4':'Financeiro','BBDC4':'Financeiro',
+    'JPMC34':'Financeiro','ITUB4':'Financeiro','CXSE3':'Seguros','BBSE3':'Seguros',
+    'WEGE3':'Indústria','GGBR4':'Siderurgia','VALE3':'Mineração','AURA33':'Mineração',
+    'AXIA3':'Energia Elétrica','AXIA6':'Energia Elétrica','CPLE3':'Energia Elétrica',
+    'CPLE6':'Energia Elétrica','CPFE3':'Energia Elétrica',
+    'ENEV3':'Energia Elétrica','CSMG3':'Saneamento',
+    'RADL3':'Saúde','IVVB11':'Índices','NDIV11':'Índice','SMAL11':'Índices',
+    'PETR4':'Petróleo & Gás','SUZB3':'Petroquímica','IGTI11':'Shoppings',
+    'EMBJ3':'Aviação','JBSS32':'Agroindústria','TTEN3':'Agroindústria',
+    'B3SA3':'Financeiro','AZZA3':'Varejo'
+  };
+  const weights = wh[lastMonth] || {};
+  const dy = json.dy || {};
+
+  // Detecta alterações vs mês anterior
+  const prevMonths = Object.keys(wh).sort();
+  const prevMon = prevMonths.length >= 2 ? prevMonths[prevMonths.length-2] : null;
+  const prevW = prevMon ? (wh[prevMon]||{}) : {};
+
+  let rows = tickers
+    .filter(t => (weights[t]||0) > 0)
+    .map(t => ({
+      ticker:t, sector:SECTOR_MAP[t]||'Outros',
+      weight:weights[t]||0, prevWeight:prevW[t]||0,
+      dy:dy[t]||null
+    }))
+    .sort((a,b)=>b.weight-a.weight);
+
+  const total = rows.reduce((s,r)=>s+r.weight,0);
+
+  let html = `<table class="tbl-ativos">
+    <thead><tr>
+      <th>Ativo</th><th>Setor</th>
+      <th class="num">Peso</th>
+      <th class="num">DY (12m)</th>
+      <th class="num">Liquidez</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach(r => {
+    const sc = SECTOR_COLORS[r.sector]||'#a0aec0';
+    const textClr = BADGE_TEXT_DARK.has(r.sector)?'#fff':'#fff';
+    const delta = r.weight - r.prevWeight;
+    const deltaStr = delta===0 ? '' : delta>0
+      ? `<span style="color:#38a169;font-size:10px;margin-left:4px">▲ +${delta}%</span>`
+      : `<span style="color:#e53e3e;font-size:10px;margin-left:4px">▼ ${delta}%</span>`;
+
+    html += `<tr>
+      <td><strong>${r.ticker}</strong>${deltaStr}</td>
+      <td><span class="badge" style="background:${sc};color:${textClr}">${r.sector}</span></td>
+      <td class="num">${r.weight}%</td>
+      <td class="num ${r.dy?'dy-val':''}">${r.dy?r.dy.toFixed(1)+'%':'—'}</td>
+      <td class="num"><span class="liq-badge">D+2</span></td>
+    </tr>`;
+  });
+
+  html += `<tr style="background:#f7fafc;border-top:2px solid #e2e8f0">
+    <td colspan="2"><strong>TOTAL</strong></td>
+    <td class="num"><strong>${total}%</strong></td>
+    <td class="num"></td><td class="num"></td>
+  </tr></tbody></table>`;
+
+  document.getElementById('tbl-ativos-wrap').innerHTML = html;
+}
+
+// ── START ──
+init();
+</script>
+</body>
+</html>
