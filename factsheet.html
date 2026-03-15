@@ -6,626 +6,849 @@
 <title>Factsheet — Eleva MFO</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;font-size:13px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;font-size:13px}
 
-/* ── HEADER ── */
-.header{background:linear-gradient(135deg,#1a2d5a,#2c5282 55%,#2b6cb0);color:#fff;padding:14px 28px 12px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
-.logo-img{height:48px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.25))}
-.logo-fallback{display:none;font-size:14px;font-weight:700;letter-spacing:.5px}
-.header-info{text-align:right}
-.h-portfolio{font-size:16px;font-weight:700;letter-spacing:.3px}
-.h-sub{font-size:10px;opacity:.72;margin-top:2px}
-.pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
-.pill{background:rgba(255,255,255,.14);border-radius:10px;padding:6px 12px;text-align:center;min-width:90px}
-.pill .pl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;opacity:.7}
-.pill .pv{font-size:15px;font-weight:700;margin-top:1px}
-.pill .pd{font-size:9px;margin-top:2px;opacity:.9}
-.pos{color:#68d391}.neg{color:#fc8181}.neut{color:#fbd38d}
-.dpos{color:#9ae6b4}.dneg{color:#fc8181}.dneut{color:#fbd38d}
-
-/* ── TOOLBAR (hidden on print) ── */
-.toolbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 28px;display:flex;align-items:center;gap:12px}
-.btn-print{display:flex;align-items:center;gap:7px;padding:8px 18px;border:2px solid #2c5282;background:#2c5282;color:#fff;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px;transition:all .15s}
-.btn-print:hover{background:#1a2d5a;border-color:#1a2d5a}
+/* ── TOOLBAR ── */
+.toolbar{background:#fff;border-bottom:2px solid #e2e8f0;padding:10px 28px;display:flex;align-items:center;gap:14px}
+.btn-print{display:flex;align-items:center;gap:7px;padding:8px 20px;border:none;background:#1a2d5a;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;letter-spacing:.3px;transition:background .15s}
+.btn-print:hover{background:#2c5282}
 .toolbar-note{font-size:11px;color:#718096}
 
+/* ── SHEET (simula página A4) ── */
+.sheet{max-width:860px;margin:24px auto;background:#fff;box-shadow:0 3px 16px rgba(0,0,0,.14);border-radius:4px;overflow:hidden;page-break-after:always}
+.sheet:last-of-type{page-break-after:auto}
+
+/* ── HEADER ── */
+.pg-header{background:linear-gradient(135deg,#1a2d5a 0%,#2c5282 55%,#2b6cb0 100%);color:#fff;padding:14px 24px 12px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo-img{height:44px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 4px rgba(0,0,0,.3))}
+.logo-fallback{display:none;font-size:16px;font-weight:800;letter-spacing:.5px;color:#fff}
+.hdr-right{text-align:right}
+.hdr-title{font-size:16px;font-weight:700;letter-spacing:.3px}
+.hdr-sub{font-size:10px;opacity:.72;margin-top:2px}
+.hdr-pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
+.pill{background:rgba(255,255,255,.15);border-radius:10px;padding:5px 14px;text-align:center;min-width:88px}
+.pill .pl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;opacity:.75}
+.pill .pv{font-size:15px;font-weight:700;margin-top:2px}
+.pos{color:#9ae6b4}.neg{color:#fc8181}.neut{color:#fbd38d}
+.dpos{color:#c6f6d5}.dneg{color:#fed7d7}.dneut{color:#fefcbf}
+
 /* ── BODY ── */
-.page{max-width:860px;margin:0 auto;padding:20px 24px}
+.pg-body{padding:14px 18px 18px}
+
+/* ── STAT CARDS ── */
+.stat-row{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-bottom:14px}
+.sc{background:#f7fafc;border-radius:7px;padding:9px 10px;text-align:center;border-top:3px solid #2c5282}
+.sc.green{border-top-color:#38a169}.sc.amber{border-top-color:#d69e2e}.sc.red{border-top-color:#e53e3e}.sc.purple{border-top-color:#805ad5}
+.sc-lbl{font-size:8.5px;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sc-val{font-size:15px;font-weight:700;color:#1a2d5a;line-height:1}
+.sc-sub{font-size:9px;color:#a0aec0;margin-top:3px}
 
 /* ── SECTION ── */
-.section{background:#fff;border-radius:10px;padding:20px 22px;margin-bottom:18px;box-shadow:0 1px 8px rgba(0,0,0,.07)}
-.section-title{font-size:12px;font-weight:700;color:#1a2d5a;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid #e8edf5;padding-bottom:7px;margin-bottom:14px}
+.sect{margin-bottom:14px}
+.sect-title{font-size:10.5px;font-weight:700;color:#1a2d5a;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid #e8edf5;padding-bottom:5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.sect-title::before{content:'';display:inline-block;width:3px;height:12px;background:#2c5282;border-radius:2px;flex-shrink:0}
 
-/* ── CHART BOXES ── */
-.chart-wrap{position:relative;width:100%}
-.chart-wrap canvas{display:block}
-.note{font-size:10px;color:#a0aec0;margin-top:8px;font-style:italic;line-height:1.5}
+/* ── TWO COLUMNS ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 
 /* ── MONTHLY TABLE ── */
-.tbl-rent{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:14px}
-.tbl-rent th{background:#f7fafc;color:#718096;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.4px;padding:5px 6px;text-align:center;border-bottom:2px solid #e2e8f0}
-.tbl-rent td{padding:4px 6px;text-align:center;border-bottom:1px solid #f0f4f8}
-.tbl-rent tr:last-child td{border-bottom:none}
-.tbl-rent .td-year{font-weight:700;text-align:left;color:#2d3748}
-.tbl-rent .td-label{text-align:left;font-size:10px;color:#718096;padding-left:10px}
-.tbl-rent .td-pos{color:#276749;font-weight:600}
-.tbl-rent .td-neg{color:#c53030;font-weight:600}
-.tbl-rent .td-diff-pos{color:#38a169;font-size:10px}
-.tbl-rent .td-diff-neg{color:#e53e3e;font-size:10px}
-.tbl-rent .td-acc{font-weight:700;color:#2c5282}
+.tbl-rent{width:100%;border-collapse:collapse;font-size:9.5px}
+.tbl-rent th{background:#f7fafc;color:#718096;font-weight:700;text-transform:uppercase;font-size:8px;letter-spacing:.4px;padding:4px 3px;text-align:center;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+.tbl-rent th.th-left{text-align:left;padding-left:6px}
+.tbl-rent td{padding:3px 3px;text-align:center;border-bottom:1px solid #f0f4f8;font-size:9px}
+.td-year{font-weight:700;text-align:left;color:#1a2d5a;font-size:10px;padding-left:4px!important}
+.td-lbl{text-align:left!important;font-size:8.5px;color:#718096;padding-left:8px!important;white-space:nowrap}
+.td-pos{color:#276749;font-weight:600}.td-neg{color:#c53030;font-weight:600}
+.td-dp{color:#38a169;font-size:8.5px}.td-dn{color:#e53e3e;font-size:8.5px}
+.td-acc{font-weight:700;color:#2c5282}
+.yr-sep td{height:5px;background:#f7fafc;border:none}
+.bench-row td{color:#718096}
+.delta-row{background:#fafbfd!important}
+.delta-row td{font-size:8.5px}
 
 /* ── ATIVOS TABLE ── */
-.tbl-ativos{width:100%;border-collapse:collapse;font-size:11.5px}
-.tbl-ativos th{background:#f7fafc;color:#718096;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.4px;padding:6px 10px;text-align:left;border-bottom:2px solid #e2e8f0}
+.tbl-ativos{width:100%;border-collapse:collapse;font-size:10.5px}
+.tbl-ativos th{background:#f7fafc;color:#718096;font-weight:700;text-transform:uppercase;font-size:8px;letter-spacing:.4px;padding:5px 7px;text-align:left;border-bottom:2px solid #e2e8f0}
 .tbl-ativos th.num{text-align:right}
-.tbl-ativos td{padding:6px 10px;border-bottom:1px solid #f7fafc;vertical-align:middle}
+.tbl-ativos td{padding:5px 7px;border-bottom:1px solid #f7fafc;vertical-align:middle}
 .tbl-ativos td.num{text-align:right;font-weight:600}
-.tbl-ativos tr:last-child td{border-bottom:none;font-weight:700}
-.tbl-ativos tr:hover td{background:#f7fafc}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.tbl-ativos .tr-total td{background:#f7fafc;border-top:2px solid #e2e8f0;font-weight:700}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:8.5px;font-weight:600;color:#fff;white-space:nowrap}
 .dy-val{color:#276749;font-weight:600}
-.liq-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;background:#ebf4ff;color:#2c5282;font-weight:600}
+
+/* ── CHART WRAPS ── */
+.ch-wrap{position:relative;width:100%}
+.ch-wrap canvas{display:block}
+.note{font-size:9px;color:#a0aec0;margin-top:6px;font-style:italic;line-height:1.4}
 
 /* ── FOOTER ── */
-.footer{font-size:9.5px;color:#a0aec0;text-align:center;padding:14px 0 8px;border-top:1px solid #e2e8f0;margin-top:6px;line-height:1.6}
+.pg-footer{font-size:8.5px;color:#b0bec5;padding:8px 18px;border-top:1px solid #e8edf5;line-height:1.5}
 
 /* ── LOADING ── */
-.loading-msg{text-align:center;padding:60px 0;color:#a0aec0;font-size:14px}
+.loading{text-align:center;padding:60px;color:#a0aec0;font-size:14px}
 
-/* ══════════════════════════════════════
-   PRINT STYLES
-══════════════════════════════════════ */
+/* ═══════════════════════════════
+   PRINT
+═══════════════════════════════ */
 @media print{
-  @page{size:A4 portrait;margin:8mm 10mm 12mm}
+  @page{size:A4 portrait;margin:7mm 9mm 11mm}
   *,*::before,*::after{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   body{background:#fff!important}
   .toolbar{display:none!important}
-  .page{padding:0!important;max-width:100%!important}
-  .section{box-shadow:none!important;border:1px solid #e8edf5!important;margin-bottom:10px!important;padding:12px 14px!important;break-inside:avoid}
-  .header{padding:10px 16px!important}
-  .logo-img{height:38px!important}
-  .section-perf{break-after:page}
-  .footer{border-top:1px solid #e2e8f0}
+  .sheet{max-width:100%!important;margin:0!important;box-shadow:none!important;border-radius:0!important;break-after:page}
+  .sheet:last-of-type{break-after:auto}
+  .pg-body{padding:10px 12px 12px!important}
+  .pg-header{padding:10px 14px!important}
+  .logo-img{height:36px!important}
+  .stat-row{gap:6px!important;margin-bottom:10px!important}
+  .sc{padding:7px 8px!important}
+  .sect{margin-bottom:10px!important}
+  .two-col{gap:10px!important}
+  .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
 }
 </style>
 </head>
 <body>
 
-<!-- ═══ HEADER ═══ -->
-<div class="header">
-  <div>
-    <img src="logo_eleva_branco.png" alt="Eleva MFO" class="logo-img"
-         onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='block'">
-    <span id="logo-fallback" class="logo-fallback">Eleva Multi-Family Office</span>
-  </div>
-  <div class="header-info">
-    <div class="h-portfolio" id="h-portfolio">Carteiras Temáticas de Renda Variável</div>
-    <div class="h-sub" id="h-sub">Competência: —</div>
-    <div class="pills" id="h-pills"></div>
-  </div>
-</div>
-
-<!-- ═══ TOOLBAR ═══ -->
+<!-- TOOLBAR -->
 <div class="toolbar">
   <button class="btn-print" onclick="window.print()">⬇ Salvar como PDF</button>
-  <span class="toolbar-note" id="toolbar-note">Clique em "Salvar como PDF" → no diálogo de impressão, selecione <strong>Salvar como PDF</strong></span>
+  <span class="toolbar-note" id="toolbar-note">Selecione <strong>Salvar como PDF</strong> no diálogo de impressão para exportar</span>
 </div>
 
-<!-- ═══ CONTENT ═══ -->
-<div class="page">
-  <div id="content"><div class="loading-msg">⏳ Carregando dados…</div></div>
+<!-- ══════════════════════════════
+     PÁGINA 1 — Dados Históricos
+══════════════════════════════ -->
+<div class="sheet" id="sheet1">
+  <div class="pg-header">
+    <div>
+      <img src="logo_eleva_branco.png" alt="Eleva MFO" class="logo-img"
+           onerror="this.style.display='none';document.getElementById('lf1').style.display='block'">
+      <span id="lf1" class="logo-fallback">Eleva</span>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-title" id="h-title1">Carteiras Temáticas de Renda Variável</div>
+      <div class="hdr-sub" id="h-sub1">Relatório Mensal — —</div>
+      <div class="hdr-pills" id="h-pills1"></div>
+    </div>
+  </div>
+  <div class="pg-body" id="body1"><div class="loading">⏳ Carregando dados…</div></div>
+  <div class="pg-footer" id="footer1"></div>
+</div>
+
+<!-- ══════════════════════════════
+     PÁGINA 2 — Gráficos
+══════════════════════════════ -->
+<div class="sheet" id="sheet2">
+  <div class="pg-header">
+    <div>
+      <img src="logo_eleva_branco.png" alt="Eleva MFO" class="logo-img"
+           onerror="this.style.display='none';document.getElementById('lf2').style.display='block'">
+      <span id="lf2" class="logo-fallback">Eleva</span>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-title" id="h-title2">Carteiras Temáticas de Renda Variável</div>
+      <div class="hdr-sub" id="h-sub2">Relatório Mensal — —</div>
+    </div>
+  </div>
+  <div class="pg-body" id="body2"><div class="loading">⏳ Carregando dados…</div></div>
+  <div class="pg-footer" id="footer2"></div>
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-//  Factsheet — Eleva MFO
-//  Lê dashboard_data.json e renderiza factsheet
-// ─────────────────────────────────────────────
+// ────────────────────────────────────────────────
+//  Factsheet v2 — Eleva MFO  (estilo Alaska/Encore)
+// ────────────────────────────────────────────────
 
+// ── Constantes ──
+const SECTOR_MAP = {
+  'BPAC11':'Financeiro','BBAS3':'Financeiro','ITUB4':'Financeiro','BBDC4':'Financeiro',
+  'JPMC34':'Financeiro','B3SA3':'Financeiro','SANB11':'Financeiro','BPAN4':'Financeiro',
+  'CXSE3':'Seguros','BBSE3':'Seguros',
+  'WEGE3':'Indústria','GGBR4':'Siderurgia',
+  'VALE3':'Mineração','AURA33':'Mineração',
+  'AXIA3':'Energia Elétrica','AXIA6':'Energia Elétrica','CPLE3':'Energia Elétrica',
+  'CPLE5':'Energia Elétrica','CPLE6':'Energia Elétrica','CPFE3':'Energia Elétrica',
+  'ENEV3':'Energia','CSMG3':'Saneamento',
+  'RADL3':'Saúde','IGTI11':'Shoppings',
+  'IVVB11':'Índices','NDIV11':'Índices','SMAL11':'Índices',
+  'PETR4':'Petróleo & Gás','SUZB3':'Petroquímica',
+  'EMBJ3':'Aviação',
+  'JBSS32':'Agroindústria','TTEN3':'Agroindústria','JBBS3':'Agroindústria',
+  'ARZZ3':'Moda','AZZA3':'Moda',
+};
 const SECTOR_COLORS = {
   'Financeiro':'#3182ce','Energia Elétrica':'#d69e2e','Mineração':'#718096',
   'Saneamento':'#38a169','Saúde':'#e53e3e','Índices':'#805ad5',
   'Indústria':'#dd6b20','Petróleo & Gás':'#2c7a7b','Agroindústria':'#276749',
   'Siderurgia':'#744210','Shoppings':'#b7791f','Seguros':'#2b6cb0',
-  'Aviação':'#553c9a','Petroquímica':'#2d3748','Outros':'#a0aec0'
+  'Aviação':'#553c9a','Petroquímica':'#2d3748','Moda':'#d53f8c',
+  'Energia':'#f6ad55','Outros':'#a0aec0'
 };
-const BADGE_TEXT_DARK = new Set(['Mineração','Índices','Petróleo & Gás','Siderurgia','Outros','Aviação','Petroquímica']);
-
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ── Estado global ──
+let json = null;
+let dailyPrices = {};
+let monthlyPrices = {};
+let wh = {};          // weights_history do portfolio
+let allMonths = [];
+let compMonth = '';
+let benchTkr = '';
 let chartInstances = {};
 
-// ── Lê portfolio da URL ──
-const params = new URLSearchParams(location.search);
-const PORTFOLIO_KEY = params.get('portfolio') || 'acoes';
+// ── URL param ──
+const PORTFOLIO_KEY = new URLSearchParams(location.search).get('portfolio') || 'acoes';
 
-// ── Dados ──
-let json = null;
-
-// ── Preços (populados após JSON carregar) ──
-let dailyPrices  = {};
-let monthlyPrices = {};
-
-// Último fechamento disponível de um ticker num determinado mês (YYYY-MM).
-// Tenta dados diários primeiro; fallback para mensal.
+// ── Último fechamento de um ticker num mês ──
 function lastClose(ticker, mon) {
   if (!mon) return null;
   const pm = dailyPrices[ticker] || {};
   const days = Object.keys(pm).filter(d => d.startsWith(mon)).sort();
-  if (days.length) return Number(pm[days[days.length - 1]]);
+  if (days.length) return Number(pm[days[days.length-1]]);
   const mp = monthlyPrices[ticker] || {};
   return mp[mon] ? Number(mp[mon]) : null;
 }
 
+// ── Retorno mensal da carteira (ponderado) ──
+function portMonRet(mon) {
+  const idx = allMonths.indexOf(mon);
+  if (idx < 1) return null;
+  const prev = allMonths[idx-1];
+  const w = wh[mon] || {};
+  let ret = 0, tot = 0;
+  Object.entries(w).forEach(([t, wt]) => {
+    if (!wt) return;
+    const c = lastClose(t, mon), p = lastClose(t, prev);
+    if (c && p) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
+  });
+  return tot > 0 ? ret/tot : null;
+}
+
+// ── Retorno mensal do benchmark ──
+function benchMonRet(mon) {
+  const idx = allMonths.indexOf(mon);
+  if (idx < 1) return null;
+  const prev = allMonths[idx-1];
+  const c = lastClose(benchTkr, mon), p = lastClose(benchTkr, prev);
+  return (c && p) ? (c-p)/p*100 : null;
+}
+
+// ═══ INIT ═══════════════════════════════════════
 async function init() {
   try {
     const r = await fetch('./dashboard_data.json?t=' + Date.now());
     if (!r.ok) throw new Error('HTTP ' + r.status);
     json = await r.json();
   } catch(e) {
-    document.getElementById('content').innerHTML =
-      `<div style="text-align:center;padding:60px;color:#c53030">
-        ⚠️ Não foi possível carregar os dados.<br>
-        <small style="color:#718096">${e.message}</small></div>`;
+    const msg = `<div style="text-align:center;padding:60px;color:#c53030">⚠️ Não foi possível carregar os dados.<br><small style="color:#718096">${e.message}</small></div>`;
+    document.getElementById('body1').innerHTML = msg;
+    document.getElementById('body2').innerHTML = '';
     return;
   }
   render();
 }
 
+// ═══ RENDER ══════════════════════════════════════
 function render() {
-  const wh  = json.weights_history?.[PORTFOLIO_KEY] || {};
-  const allMonths = Object.keys(wh).sort();
-  const lastMonth = allMonths[allMonths.length - 1];
-
-  // ── Nome e competência ──
-  const portName = PORTFOLIO_KEY === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
-  const benchTkr = PORTFOLIO_KEY === 'acoes' ? 'BOVA11' : 'DIVO11';
-  const benchLbl = PORTFOLIO_KEY === 'acoes' ? 'BOVA11 (Ibovespa)' : 'IDIV (DIVO11)';
-
-  // Competência = último mês FECHADO (não o mês corrente parcial)
-  const today = new Date();
-  const thisMonth = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-  const compMonth = lastMonth < thisMonth ? lastMonth : allMonths[allMonths.length - 2] || lastMonth;
-  const [cy, cm] = compMonth.split('-').map(Number);
-  const compLabel = `${MESES[cm-1]}/${cy}`;
-  document.title = `Factsheet_${portName.replace(/\s+/g,'_')}_${compMonth}`;
-  document.getElementById('h-portfolio').textContent = `${portName} — Eleva Multi-Family Office`;
-  document.getElementById('h-sub').textContent = `Competência: ${compLabel} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`;
-  document.getElementById('toolbar-note').innerHTML =
-    `<strong>${portName}</strong> — ${compLabel} &nbsp;|&nbsp; Clique em "Salvar como PDF" no diálogo de impressão`;
-
-  // ── Tickers atuais ──
-  const tickers = Object.keys(wh[lastMonth] || {});
-
-  // ── Popula preços no escopo do módulo (usados por lastClose global) ──
+  wh          = json.weights_history?.[PORTFOLIO_KEY] || {};
+  allMonths   = Object.keys(wh).sort();
   dailyPrices   = json.prices_daily || {};
   monthlyPrices = json.prices       || {};
 
-  // ── PILLS ──
-  renderPills(wh, allMonths, compMonth, benchTkr, PORTFOLIO_KEY, portName, benchLbl);
+  const lastMonth = allMonths[allMonths.length-1];
+  const portName  = PORTFOLIO_KEY === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
+  benchTkr        = PORTFOLIO_KEY === 'acoes' ? 'BOVA11' : 'DIVO11';
+  const benchLbl  = PORTFOLIO_KEY === 'acoes' ? 'Ibovespa (BOVA11)' : 'IDIV (DIVO11)';
+  const benchShort= PORTFOLIO_KEY === 'acoes' ? 'Ibovespa' : 'IDIV';
 
-  // ── BUILD HTML ──
-  document.getElementById('content').innerHTML = `
-    <div class="section section-perf" id="sec-perf">
-      <div class="section-title">Performance Acumulada</div>
-      <div class="chart-wrap" style="height:300px"><canvas id="ch-line"></canvas></div>
-      <div class="note">* Retorno acumulado ponderado pelos pesos da carteira com cotações diárias. Linha tracejada = benchmark.</div>
+  // Competência = último mês fechado
+  const today = new Date();
+  const thisM = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  compMonth = lastMonth < thisM ? lastMonth : (allMonths[allMonths.length-2] || lastMonth);
+  const [cy, cm] = compMonth.split('-').map(Number);
+  const compLabel = `${MESES[cm-1]}/${cy}`;
+
+  // Título da página
+  document.title = `Factsheet_${portName.replace(/\s+/g,'_')}_${compMonth}`;
+  ['1','2'].forEach(n => {
+    document.getElementById(`h-title${n}`).textContent = `${portName} — Eleva Multi-Family Office`;
+    document.getElementById(`h-sub${n}`).textContent = `Relatório Mensal — Competência: ${compLabel}`;
+  });
+  document.getElementById('toolbar-note').innerHTML =
+    `<strong>${portName}</strong> · ${compLabel} &nbsp;|&nbsp; Use <strong>Salvar como PDF</strong> no diálogo de impressão`;
+
+  // Tickers ativos (peso > 0 no mês mais recente)
+  const tickers = Object.keys(wh[lastMonth] || {}).filter(t => (wh[lastMonth][t]||0) > 0);
+
+  // Calcula stats
+  const stats = computeStats();
+
+  // Footer
+  const footerTxt = `⚠ Aviso Legal: Documento exclusivo para uso interno da Eleva Multi-Family Office. Não constitui recomendação de investimento. Rentabilidades passadas não garantem resultados futuros. Dados: ${json.generated_at||'—'} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  document.getElementById('footer1').textContent = footerTxt;
+  document.getElementById('footer2').textContent = footerTxt;
+
+  // ─── PÁGINA 1 ───────────────────────────────
+  document.getElementById('body1').innerHTML = `
+    <div class="stat-row" id="stat-row"></div>
+
+    <div class="sect">
+      <div class="sect-title">Histórico de Rentabilidade — ${portName} vs ${benchShort}</div>
       <div id="tbl-mensal"></div>
     </div>
 
-    <div class="section" id="sec-rent">
-      <div class="section-title" id="rent-title">Rentabilidade por Ação — ${compLabel}</div>
-      <div class="chart-wrap" id="ch-bar-wrap" style="height:420px"><canvas id="ch-bar"></canvas></div>
-      <div class="note">pp = contribuição à rentabilidade da carteira (peso × retorno). Barra cinza = benchmark.</div>
-    </div>
-
-    <div class="section" id="sec-ativos">
-      <div class="section-title">Composição da Carteira — ${compLabel}</div>
-      <div id="tbl-ativos-wrap"></div>
-      <p class="note" style="margin-top:10px">Pesos referentes a ${compLabel}. DY = Dividend Yield dos últimos 12 meses. Fontes: Fundamentus, brapi.dev.</p>
-    </div>
-
-    <div class="footer">
-      ⚠ Aviso Legal: Dashboard exclusivo para uso interno. Não constitui recomendação de investimento.
-      Rentabilidades passadas não garantem resultados futuros. DY indicativo baseado nos últimos 12 meses disponíveis.<br>
-      Gerado em ${new Date().toLocaleString('pt-BR')} · Dados: ${json.generated_at || '—'}
+    <div class="two-col">
+      <div class="sect">
+        <div class="sect-title">Exposição Setorial — ${compLabel}</div>
+        <div class="ch-wrap" id="ch-setor-wrap" style="height:210px">
+          <canvas id="ch-setor"></canvas>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="sect-title">Composição da Carteira — ${compLabel}</div>
+        <div id="tbl-ativos-wrap"></div>
+      </div>
     </div>
   `;
 
-  // Render cada seção
-  renderLineChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, PORTFOLIO_KEY);
-  renderMonthlyTable(wh, allMonths, compMonth, benchTkr, tickers, PORTFOLIO_KEY);
-  renderBarChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, PORTFOLIO_KEY);
-  renderAtivosTable(wh, lastMonth, tickers);
+  // ─── PÁGINA 2 ───────────────────────────────
+  document.getElementById('body2').innerHTML = `
+    <div class="sect">
+      <div class="sect-title">Performance Acumulada — ${portName} vs ${benchShort}</div>
+      <div class="ch-wrap" style="height:270px"><canvas id="ch-line"></canvas></div>
+      <div class="note">Retorno acumulado ponderado pelos pesos mensais com cotações diárias. Linha sólida = carteira · tracejada = benchmark.</div>
+    </div>
+
+    <div class="sect">
+      <div class="sect-title">Drawdown Histórico — ${portName}</div>
+      <div class="ch-wrap" style="height:170px"><canvas id="ch-dd"></canvas></div>
+      <div class="note">Queda percentual em relação ao pico histórico anterior da carteira (cotações diárias).</div>
+    </div>
+
+    <div class="sect">
+      <div class="sect-title" id="bar-title">Rentabilidade por Ação — ${compLabel}</div>
+      <div class="ch-wrap" id="ch-bar-wrap" style="height:340px"><canvas id="ch-bar"></canvas></div>
+      <div class="note">pp = contribuição à rentabilidade da carteira (peso × retorno). Barra cinza = benchmark.</div>
+    </div>
+  `;
+
+  // ── Renderiza pills no header p1 ──
+  renderPills(portName, benchShort, compLabel);
+
+  // ── Renderiza seções ──
+  renderStatCards(stats, tickers.length, benchShort);
+  renderMonthlyTable(portName, benchShort);
+  renderSectorChart(lastMonth);
+  renderAtivosTable(lastMonth, tickers);
+  renderLineChart(portName, benchLbl);
+  renderDrawdown();
+  renderBarChart(portName, benchLbl, tickers, compLabel);
 }
 
-// ── PILLS ──────────────────────────────────────────
-function renderPills(wh, allMonths, compMonth, benchTkr, portKey, portName, benchLbl) {
-  const prevM = (() => {
-    const idx = allMonths.indexOf(compMonth);
-    return idx > 0 ? allMonths[idx-1] : null;
-  })();
+// ═══ PILLS ════════════════════════════════════
+function renderPills(portName, benchShort, compLabel) {
+  const idx   = allMonths.indexOf(compMonth);
+  const prevM = idx > 0 ? allMonths[idx-1] : null;
+  const w     = wh[compMonth] || {};
 
-  function portReturn(mon, prevMon) {
-    if (!mon || !prevMon) return null;
-    const w = wh[mon] || {};
-    let ret = 0, tot = 0;
-    Object.entries(w).forEach(([t, wt]) => {
-      const c = lastClose(t, mon), p = lastClose(t, prevMon);
-      if (c && p && wt > 0) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
-    });
-    return tot > 0 ? ret/tot : null;
-  }
+  let ret = 0, tot = 0;
+  Object.entries(w).forEach(([t, wt]) => {
+    if (!wt) return;
+    const c = lastClose(t, compMonth), p = prevM ? lastClose(t, prevM) : null;
+    if (c && p) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
+  });
+  const portRet  = tot > 0 ? ret/tot : null;
+  const bc = lastClose(benchTkr, compMonth), bp = prevM ? lastClose(benchTkr, prevM) : null;
+  const benchRet = (bc && bp) ? (bc-bp)/bp*100 : null;
+  const diff     = (portRet!=null && benchRet!=null) ? portRet-benchRet : null;
 
-  const portRet = portReturn(compMonth, prevM);
-  const benchC  = lastClose(benchTkr, compMonth);
-  const benchP  = lastClose(benchTkr, prevM);
-  const benchRet = (benchC && benchP) ? (benchC-benchP)/benchP*100 : null;
-  const diff = (portRet != null && benchRet != null) ? portRet - benchRet : null;
+  const fmt  = v => v==null ? '—' : `${v>=0?'+':''}${v.toFixed(2)}%`;
+  const cls  = v => v==null ? 'neut' : v>=0 ? 'pos' : 'neg';
+  const dcls = v => v==null ? 'dneut' : v>=0 ? 'dpos' : 'dneg';
 
-  function fmt(v) { return v == null ? '—' : `${v>=0?'+':''}${v.toFixed(2)}%`; }
-  function cls(v) { return v == null ? 'neut' : v >= 0 ? 'pos' : 'neg'; }
-  function dcls(v) { return v == null ? 'dneut' : v >= 0 ? 'dpos' : 'dneg'; }
-
-  const [cy, cm] = compMonth.split('-').map(Number);
-  const lbl = `${MESES[cm-1]}/${String(cy).slice(2)}`;
-  const bLabel = benchTkr === 'DIVO11' ? 'IDIV' : 'IBOVESPA';
-
-  document.getElementById('h-pills').innerHTML = `
+  document.getElementById('h-pills1').innerHTML = `
     <div class="pill">
-      <div class="pl">${portName.split(' ').slice(-1)[0]}</div>
+      <div class="pl">Carteira</div>
       <div class="pv ${cls(portRet)}">${fmt(portRet)}</div>
-      <div class="pl">${lbl}</div>
-      ${diff!=null?`<div class="pd ${dcls(diff)}">Δ ${bLabel}: ${fmt(diff)}</div>`:''}
+      <div class="pl">mês</div>
     </div>
     <div class="pill">
-      <div class="pl">${bLabel}</div>
+      <div class="pl">${benchShort}</div>
       <div class="pv neut">${fmt(benchRet)}</div>
-      <div class="pl">${lbl}</div>
+      <div class="pl">mês</div>
+    </div>
+    ${diff!=null?`<div class="pill">
+      <div class="pl">Alpha</div>
+      <div class="pv ${dcls(diff)}">${fmt(diff)}</div>
+      <div class="pl">vs ${benchShort}</div>
+    </div>`:''}`;
+}
+
+// ═══ ESTATÍSTICAS ══════════════════════════════
+function computeStats() {
+  const rets = [];
+  let above = 0, below = 0;
+
+  allMonths.filter(m => m <= compMonth).forEach(mon => {
+    const pr = portMonRet(mon);
+    const br = benchMonRet(mon);
+    if (pr !== null) {
+      rets.push(pr);
+      if (br !== null) { if (pr > br) above++; else below++; }
+    }
+  });
+
+  const n = rets.length;
+  if (!n) return {};
+
+  const mean = rets.reduce((s,r)=>s+r,0)/n;
+  const variance = rets.reduce((s,r)=>s+(r-mean)**2,0)/(n-1||1);
+  const annualVol = Math.sqrt(variance*12);
+  const posMonths = rets.filter(r=>r>0).length;
+  const maxMonthly = Math.max(...rets);
+  const minMonthly = Math.min(...rets);
+
+  // Retorno 12m
+  const last12 = allMonths.filter(m=>m<=compMonth).slice(-12);
+  let ret12 = 0;
+  last12.forEach(m => { const pr = portMonRet(m); if (pr!==null) ret12=(1+ret12/100)*(1+pr/100)*100-100; });
+
+  // Retorno total acumulado
+  let cumRet = 0;
+  allMonths.filter(m=>m<=compMonth).forEach(m => { const pr=portMonRet(m); if (pr!==null) cumRet=(1+cumRet/100)*(1+pr/100)*100-100; });
+
+  // Max drawdown (de retornos mensais)
+  let peak=100, maxDD=0;
+  rets.forEach(r => {
+    const val = peak*(1+r/100);
+    if (val>peak) peak=val;
+    const dd=(val-peak)/peak*100;
+    if (dd<maxDD) maxDD=dd;
+    peak=Math.max(peak,val);
+  });
+
+  return { n, annualVol, maxMonthly, minMonthly, posMonths, above, cumRet, ret12, maxDD };
+}
+
+function renderStatCards(s, activeCount, benchShort) {
+  if (!s.n) return;
+  const fmtPct = v => `${v>=0?'+':''}${v.toFixed(2)}%`;
+
+  document.getElementById('stat-row').innerHTML = `
+    <div class="sc">
+      <div class="sc-lbl">Ativos</div>
+      <div class="sc-val">${activeCount}</div>
+      <div class="sc-sub">no portfólio</div>
+    </div>
+    <div class="sc amber">
+      <div class="sc-lbl">Volatilidade</div>
+      <div class="sc-val">${s.annualVol.toFixed(1)}%</div>
+      <div class="sc-sub">anualizada</div>
+    </div>
+    <div class="sc ${s.ret12>=0?'green':'red'}">
+      <div class="sc-lbl">Retorno 12m</div>
+      <div class="sc-val" style="font-size:13px">${fmtPct(s.ret12)}</div>
+      <div class="sc-sub">últimos 12 meses</div>
+    </div>
+    <div class="sc green">
+      <div class="sc-lbl">Meses Positivos</div>
+      <div class="sc-val">${s.posMonths}<span style="font-size:10px;font-weight:400;color:#718096">/${s.n}</span></div>
+      <div class="sc-sub">${(s.posMonths/s.n*100).toFixed(0)}% do total</div>
+    </div>
+    <div class="sc purple">
+      <div class="sc-lbl">Acima ${benchShort}</div>
+      <div class="sc-val">${s.above}<span style="font-size:10px;font-weight:400;color:#718096">/${s.above+s.below}</span></div>
+      <div class="sc-sub">${s.above+s.below ? (s.above/(s.above+s.below)*100).toFixed(0)+'%' : '—'} dos meses</div>
+    </div>
+    <div class="sc red">
+      <div class="sc-lbl">Max Drawdown</div>
+      <div class="sc-val" style="color:#c53030">${s.maxDD.toFixed(1)}%</div>
+      <div class="sc-sub">mensal histórico</div>
     </div>`;
 }
 
-// ── PERFORMANCE ACUMULADA (linha) ───────────────────
-function renderLineChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, portKey) {
-  const allTickers = [...tickers, benchTkr];
-
-  // Todos os dias disponíveis no range
-  const allDays = [...new Set(
-    allTickers.flatMap(t => Object.keys(dailyPrices[t] || {}))
-  )].sort();
-  if (!allDays.length) return;
-
-  // Base = último dia do mês anterior ao início da carteira
-  const startMon = allMonths[0];
-  const [sy, sm] = startMon.split('-').map(Number);
-  const prevSt = sm===1 ? `${sy-1}-12` : `${sy}-${String(sm-1).padStart(2,'0')}`;
-  const baseDay = [...allDays].reverse().find(d => d.slice(0,7) === prevSt) || allDays[0];
-  const useDays = allDays.filter(d => d >= baseDay);
-
-  // Retorno acumulado ponderado
-  function portAccum(day) {
-    const mon = day.slice(0,7);
-    const w = wh[mon] || wh[allMonths.filter(m=>m<=mon).pop()] || {};
-    let accRet = 0, wSum = 0;
-    Object.entries(w).forEach(([t, wt]) => {
-      if (!wt) return;
-      const dp = dailyPrices[t] || {};
-      const base = dp[baseDay]; const cur = dp[day];
-      if (base && cur) { accRet += (wt/100)*(Number(cur)-Number(base))/Number(base)*100; wSum += wt/100; }
-    });
-    return wSum > 0 ? accRet/wSum : null;
-  }
-
-  function benchAccum(day) {
-    const dp = dailyPrices[benchTkr] || {};
-    const base = dp[baseDay]; const cur = dp[day];
-    return (base && cur) ? (Number(cur)-Number(base))/Number(base)*100 : null;
-  }
-
-  const labels = useDays.map(d => {
-    const dt = new Date(d+'T12:00:00Z');
-    return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-  });
-
-  // Reduz pontos (máx 300 para não sobrecarregar)
-  const step = Math.max(1, Math.floor(useDays.length/300));
-  const sampDays = useDays.filter((_,i) => i%step===0 || i===useDays.length-1);
-  const sampLabels = sampDays.map(d => {
-    const dt = new Date(d+'T12:00:00Z');
-    return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-  });
-
-  const portData  = sampDays.map(portAccum);
-  const benchData = sampDays.map(benchAccum);
-
-  const portName = PORTFOLIO_KEY === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
-
-  if (chartInstances['line']) chartInstances['line'].destroy();
-  const ctx = document.getElementById('ch-line').getContext('2d');
-  chartInstances['line'] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: sampLabels,
-      datasets: [
-        { label: portName, data: portData,
-          borderColor:'#2c5282', backgroundColor:'rgba(44,82,130,.08)',
-          borderWidth:2, pointRadius:0, fill:true, tension:.3 },
-        { label: benchLbl, data: benchData,
-          borderColor:'#a0aec0', borderDash:[5,4],
-          borderWidth:1.5, pointRadius:0, fill:false, tension:.3 }
-      ]
-    },
-    options: {
-      responsive:true, maintainAspectRatio:false, animation:false,
-      plugins:{
-        legend:{display:true,position:'bottom',labels:{font:{size:11},usePointStyle:true}},
-        tooltip:{callbacks:{label:c=>` ${c.raw!=null?c.raw.toFixed(2):'—'}%`}}
-      },
-      scales:{
-        x:{ticks:{font:{size:9},maxTicksLimit:12},grid:{color:'#f0f4f8'}},
-        y:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'#f0f4f8'}}
-      }
-    }
-  });
-}
-
-// ── TABELA MENSAL ───────────────────────────────────
-function renderMonthlyTable(wh, allMonths, compMonth, benchTkr, tickers, portKey) {
-  const portName = portKey === 'acoes' ? 'Carteira de Ações' : 'Carteira de Dividendos';
-  const benchName = benchTkr === 'DIVO11' ? 'IDIV (DIVO11)' : 'BOVA11 (Ibovespa)';
-
-  // Calcula retorno mensal da carteira ponderado
-  function portMonRet(mon) {
-    const idx = allMonths.indexOf(mon);
-    if (idx < 1) return null;
-    const prevMon = allMonths[idx-1];
-    const w = wh[mon] || {};
-    let ret = 0, tot = 0;
-    Object.entries(w).forEach(([t, wt]) => {
-      if (!wt) return;
-      const c = lastClose(t, mon), p = lastClose(t, prevMon);
-      if (c && p) { ret += (wt/100)*(c-p)/p*100; tot += wt/100; }
-    });
-    return tot > 0 ? ret/tot : null;
-  }
-
-  function benchMonRet(mon) {
-    const idx = allMonths.indexOf(mon);
-    if (idx < 1) return null;
-    const prevMon = allMonths[idx-1];
-    const c = lastClose(benchTkr, mon), p = lastClose(benchTkr, prevMon);
-    return (c && p) ? (c-p)/p*100 : null;
-  }
-
-  // Agrupa por ano
+// ═══ TABELA MENSAL ═══════════════════════════════
+function renderMonthlyTable(portName, benchShort) {
   const years = [...new Set(allMonths.filter(m=>m<=compMonth).map(m=>m.slice(0,4)))].sort();
-  const colMonths = MESES.map((_,i)=>String(i+1).padStart(2,'0'));
+  const cols   = MESES.map((_,i)=>String(i+1).padStart(2,'0'));
 
   let html = `<table class="tbl-rent"><thead><tr>
-    <th style="width:45px">ANO</th><th style="text-align:left;padding-left:10px;width:130px">Série</th>`;
-  colMonths.forEach(m => html += `<th>${MESES[+m-1]}</th>`);
-  html += `<th>No Ano</th><th>Acum.</th></tr></thead><tbody>`;
+    <th class="th-left" style="width:36px">ANO</th>
+    <th class="th-left" style="width:80px">Série</th>`;
+  cols.forEach(m => html += `<th>${MESES[+m-1]}</th>`);
+  html += `<th>Ano</th><th>Acum.</th></tr></thead><tbody>`;
 
-  years.forEach(yr => {
-    const yrMonths = allMonths.filter(m=>m.startsWith(yr)&&m<=compMonth);
-    if (!yrMonths.length) return;
+  years.forEach((yr, yi) => {
+    const yrM = allMonths.filter(m=>m.startsWith(yr)&&m<=compMonth);
+    if (!yrM.length) return;
 
-    // Retornos anuais acumulados
-    let portAccYr = 0, benchAccYr = 0;
-    yrMonths.forEach(m => {
-      const pr = portMonRet(m); const br = benchMonRet(m);
-      if (pr != null) portAccYr = (1+portAccYr/100)*(1+pr/100)*100-100;
-      if (br != null) benchAccYr = (1+benchAccYr/100)*(1+br/100)*100-100;
+    let pAcc=0, bAcc=0;
+    yrM.forEach(m => {
+      const pr=portMonRet(m), br=benchMonRet(m);
+      if (pr!=null) pAcc=(1+pAcc/100)*(1+pr/100)*100-100;
+      if (br!=null) bAcc=(1+bAcc/100)*(1+br/100)*100-100;
     });
 
-    // Acumulado total até fim do ano
     const allUntil = allMonths.filter(m=>m<=`${yr}-12`&&m<=compMonth);
-    let portAccTot = 0, benchAccTot = 0;
+    let pTot=0, bTot=0;
     allUntil.forEach(m => {
-      const pr = portMonRet(m); const br = benchMonRet(m);
-      if (pr != null) portAccTot = (1+portAccTot/100)*(1+pr/100)*100-100;
-      if (br != null) benchAccTot = (1+benchAccTot/100)*(1+br/100)*100-100;
+      const pr=portMonRet(m), br=benchMonRet(m);
+      if (pr!=null) pTot=(1+pTot/100)*(1+pr/100)*100-100;
+      if (br!=null) bTot=(1+bTot/100)*(1+br/100)*100-100;
     });
 
-    function cell(v, cls2='') {
-      if (v==null) return `<td>—</td>`;
-      const c = v>=0?'td-pos':'td-neg';
-      return `<td class="${c} ${cls2}">${v>=0?'+':''}${v.toFixed(2)}%</td>`;
-    }
+    const cell = (v, extra='') => {
+      if (v==null) return `<td style="color:#dde3ed">—</td>`;
+      return `<td class="${v>=0?'td-pos':'td-neg'} ${extra}">${v>=0?'+':''}${v.toFixed(2)}%</td>`;
+    };
+    const dcell = v => {
+      if (v==null) return `<td style="color:#dde3ed">—</td>`;
+      return `<td class="${v>=0?'td-dp':'td-dn'}">${v>=0?'+':''}${v.toFixed(2)}%</td>`;
+    };
+
+    if (yi>0) html += `<tr class="yr-sep"><td colspan="16"></td></tr>`;
 
     // Linha carteira
-    html += `<tr><td class="td-year" rowspan="3">${yr}</td><td class="td-label">${portName}</td>`;
-    colMonths.forEach(m => {
-      const mon = `${yr}-${m}`;
-      const pr = portMonRet(mon);
-      html += (yrMonths.includes(mon) && pr!=null) ? cell(pr) : `<td style="color:#cbd5e0">—</td>`;
+    html += `<tr><td class="td-year" rowspan="3">${yr}</td><td class="td-lbl">${portName.replace('Carteira de ','')}</td>`;
+    cols.forEach(m => {
+      const mon=`${yr}-${m}`, pr=portMonRet(mon);
+      html += (yrM.includes(mon)&&pr!=null) ? cell(pr) : `<td style="color:#dde3ed">—</td>`;
     });
-    html += cell(portAccYr) + cell(portAccTot,'td-acc') + '</tr>';
+    html += cell(pAcc) + cell(pTot,'td-acc') + '</tr>';
 
     // Linha benchmark
-    html += `<tr><td class="td-label" style="color:#a0aec0">${benchName}</td>`;
-    colMonths.forEach(m => {
-      const mon = `${yr}-${m}`;
-      const br = benchMonRet(mon);
-      html += (yrMonths.includes(mon) && br!=null) ? cell(br) : `<td style="color:#cbd5e0">—</td>`;
+    html += `<tr class="bench-row"><td class="td-lbl">${benchShort}</td>`;
+    cols.forEach(m => {
+      const mon=`${yr}-${m}`, br=benchMonRet(mon);
+      html += (yrM.includes(mon)&&br!=null) ? cell(br) : `<td style="color:#dde3ed">—</td>`;
     });
-    html += cell(benchAccYr) + cell(benchAccTot) + '</tr>';
+    html += cell(bAcc) + cell(bTot) + '</tr>';
 
-    // Linha diferença
-    html += `<tr style="background:#f7fafc"><td class="td-label" style="color:#718096">Δ vs Benchmark</td>`;
-    colMonths.forEach(m => {
-      const mon = `${yr}-${m}`;
-      const pr = portMonRet(mon); const br = benchMonRet(mon);
-      const d = (pr!=null&&br!=null) ? pr-br : null;
-      if (!yrMonths.includes(mon)||d==null) { html+=`<td style="color:#cbd5e0">—</td>`; return; }
-      html += `<td class="${d>=0?'td-diff-pos':'td-diff-neg'}">${d>=0?'+':''}${d.toFixed(2)}%</td>`;
+    // Linha delta
+    html += `<tr class="delta-row"><td class="td-lbl" style="color:#a0aec0">Δ vs bench</td>`;
+    cols.forEach(m => {
+      const mon=`${yr}-${m}`;
+      const pr=portMonRet(mon), br=benchMonRet(mon);
+      const d=(pr!=null&&br!=null)?pr-br:null;
+      html += (!yrM.includes(mon)||d==null) ? `<td style="color:#dde3ed">—</td>` : dcell(d);
     });
-    const diffYr = portAccYr-benchAccYr;
-    const diffTot = portAccTot-benchAccTot;
-    html += `<td class="${diffYr>=0?'td-diff-pos':'td-diff-neg'}">${diffYr>=0?'+':''}${diffYr.toFixed(2)}%</td>`;
-    html += `<td class="${diffTot>=0?'td-diff-pos':'td-diff-neg'} td-acc">${diffTot>=0?'+':''}${diffTot.toFixed(2)}%</td></tr>`;
+    html += dcell(pAcc-bAcc);
+    html += `<td class="${(pTot-bTot)>=0?'td-dp':'td-dn'} td-acc">${(pTot-bTot)>=0?'+':''}${(pTot-bTot).toFixed(2)}%</td></tr>`;
   });
 
   html += '</tbody></table>';
   document.getElementById('tbl-mensal').innerHTML = html;
 }
 
-// ── RENTABILIDADE POR AÇÃO (barras) ─────────────────
-function renderBarChart(wh, allMonths, compMonth, benchTkr, benchLbl, tickers, portKey) {
-  // Mês anterior completo
-  const idx = allMonths.indexOf(compMonth);
-  const mesAnt = idx > 0 ? allMonths[idx-1] : null;
-  const mesBase = mesAnt && allMonths.indexOf(mesAnt) > 0 ? allMonths[allMonths.indexOf(mesAnt)-1] : null;
-  if (!mesAnt || !mesBase) return;
-
-  const wMesAnt = wh[mesAnt] || {};
-  const items = [];
-
-  tickers.forEach(ticker => {
-    const w = wMesAnt[ticker] ?? 0;
+// ═══ EXPOSIÇÃO SETORIAL ══════════════════════════
+function renderSectorChart(lastMonth) {
+  const weights = wh[lastMonth] || {};
+  const sec = {};
+  Object.entries(weights).forEach(([t,w]) => {
     if (!w) return;
-    const c = lastClose(ticker, mesAnt), p = lastClose(ticker, mesBase);
-    if (!c || !p) return;
-    const ret = (c-p)/p*100;
-    items.push({ label:ticker, ret:+ret.toFixed(2), weight:w, contrib:+(w/100*ret).toFixed(2), isBench:false });
+    const s = SECTOR_MAP[t]||'Outros';
+    sec[s] = (sec[s]||0)+w;
   });
 
-  // Benchmark
-  const bc = lastClose(benchTkr, mesAnt), bp = lastClose(benchTkr, mesBase);
-  if (bc && bp) items.push({ label:benchLbl, ret:+((bc-bp)/bp*100).toFixed(2), weight:null, contrib:null, isBench:true });
+  const sorted = Object.entries(sec).sort((a,b)=>a[1]-b[1]);
+  const labels  = sorted.map(([s])=>s);
+  const data    = sorted.map(([,v])=>v);
+  const colors  = labels.map(s=>SECTOR_COLORS[s]||'#a0aec0');
 
-  items.sort((a,b) => b.ret-a.ret);
+  // Ajusta altura ao número de setores
+  const h = Math.max(160, labels.length*28+50);
+  document.getElementById('ch-setor-wrap').style.height = h+'px';
 
-  // Altura dinâmica
-  const h = Math.max(340, items.length * 34 + 80);
-  document.getElementById('ch-bar-wrap').style.height = h + 'px';
-
-  // Plugin pp
-  const ppPlugin = {
-    id:'ppLabels',
-    afterDraw(chart) {
-      const c2=chart.ctx, meta=chart.getDatasetMeta(0);
-      const zeroX=chart.scales.x.getPixelForValue(0);
-      c2.save(); c2.font='600 10px Segoe UI,Arial,sans-serif';
-      c2.textAlign='left'; c2.textBaseline='middle';
-      meta.data.forEach((bar,i) => {
-        const it=items[i];
-        if (!it||it.isBench||it.contrib==null) return;
-        const sign=it.contrib>=0?'+':'';
-        c2.fillStyle=it.contrib>=0?'#276749':'#c53030';
-        c2.fillText(`${sign}${it.contrib.toFixed(2)}pp`, Math.max(bar.x,zeroX)+5, bar.y);
-      });
-      c2.restore();
-    }
-  };
-
-  const [, mesM] = mesAnt.split('-').map(Number);
-  const mesLabel = `${MESES[mesM-1]}/${mesAnt.slice(0,4)}`;
-  document.getElementById('rent-title').textContent = `Rentabilidade por Ação — ${mesLabel}`;
-
-  if (chartInstances['bar']) chartInstances['bar'].destroy();
-  const ctx = document.getElementById('ch-bar').getContext('2d');
-  chartInstances['bar'] = new Chart(ctx, {
-    type:'bar', plugins:[ppPlugin],
-    data:{
-      labels: items.map(it=>it.label),
-      datasets:[{
-        label:`Retorno ${mesLabel} (%)`,
-        data: items.map(it=>it.ret),
-        backgroundColor: items.map(it=>it.isBench?'rgba(113,128,150,.65)':it.ret>=0?'rgba(56,161,105,.82)':'rgba(229,62,62,.78)'),
-        borderColor:     items.map(it=>it.isBench?'#718096':it.ret>=0?'#276749':'#c53030'),
-        borderWidth:1.5, borderRadius:4, borderSkipped:false
-      }]
-    },
+  if (chartInstances['setor']) chartInstances['setor'].destroy();
+  const ctx = document.getElementById('ch-setor').getContext('2d');
+  chartInstances['setor'] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderWidth:0, borderRadius:3 }] },
+    plugins:[{
+      id:'secLabels',
+      afterDraw(chart) {
+        const c2=chart.ctx;
+        chart.getDatasetMeta(0).data.forEach((bar,i) => {
+          c2.save();
+          c2.font='700 10px Segoe UI,Arial,sans-serif';
+          c2.fillStyle='#2d3748';
+          c2.textAlign='left';
+          c2.textBaseline='middle';
+          c2.fillText(data[i].toFixed(1)+'%', bar.x+4, bar.y);
+          c2.restore();
+        });
+      }
+    }],
     options:{
       indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false,
-      layout:{padding:{right:52}},
-      plugins:{
-        title:{display:false}, legend:{display:false},
-        tooltip:{callbacks:{label:c=>{
-          const it=items[c.dataIndex];
-          let s=` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`;
-          if (it&&!it.isBench) s+=`   |   peso: ${it.weight}%   contrib: ${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`;
-          return s;
-        }}}
-      },
+      layout:{ padding:{ right:42 }},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.raw.toFixed(1)}%`}} },
       scales:{
-        x:{grid:{color:'#edf2f7'},ticks:{callback:v=>v+'%',font:{size:10}},
-           title:{display:true,text:`Retorno ${mesLabel} (%)`,font:{size:11},color:'#718096'}},
-        y:{grid:{display:false},ticks:{font:{size:12,weight:'600'},color:ctx2=>{
-          const idx2=ctx2.index;
-          return (!items[idx2]||items[idx2].isBench)?'#718096':'#2d3748';
-        }}}
+        x:{ grid:{color:'#f0f4f8'}, ticks:{callback:v=>v+'%',font:{size:9}},
+            max: Math.ceil(Math.max(...data)/5)*5+5 },
+        y:{ grid:{display:false}, ticks:{font:{size:10,weight:'600'},color:'#2d3748'} }
       }
     }
   });
 }
 
-// ── TABELA DE ATIVOS ────────────────────────────────
-function renderAtivosTable(wh, lastMonth, tickers) {
-  const SECTOR_MAP = {
-    'BPAC11':'Financeiro','BBAS3':'Financeiro','ITUB4':'Financeiro','BBDC4':'Financeiro',
-    'JPMC34':'Financeiro','ITUB4':'Financeiro','CXSE3':'Seguros','BBSE3':'Seguros',
-    'WEGE3':'Indústria','GGBR4':'Siderurgia','VALE3':'Mineração','AURA33':'Mineração',
-    'AXIA3':'Energia Elétrica','AXIA6':'Energia Elétrica','CPLE3':'Energia Elétrica',
-    'CPLE6':'Energia Elétrica','CPFE3':'Energia Elétrica',
-    'ENEV3':'Energia Elétrica','CSMG3':'Saneamento',
-    'RADL3':'Saúde','IVVB11':'Índices','NDIV11':'Índice','SMAL11':'Índices',
-    'PETR4':'Petróleo & Gás','SUZB3':'Petroquímica','IGTI11':'Shoppings',
-    'EMBJ3':'Aviação','JBSS32':'Agroindústria','TTEN3':'Agroindústria',
-    'B3SA3':'Financeiro','AZZA3':'Varejo'
-  };
-  const weights = wh[lastMonth] || {};
-  const dy = json.dy || {};
+// ═══ TABELA DE ATIVOS ════════════════════════════
+function renderAtivosTable(lastMonth, tickers) {
+  const weights = wh[lastMonth]||{};
+  const dy      = json.dy||{};
+  const allM    = Object.keys(wh).sort();
+  const prevMon = allM.length>=2 ? allM[allM.length-2] : null;
+  const prevW   = prevMon ? (wh[prevMon]||{}) : {};
 
-  // Detecta alterações vs mês anterior
-  const prevMonths = Object.keys(wh).sort();
-  const prevMon = prevMonths.length >= 2 ? prevMonths[prevMonths.length-2] : null;
-  const prevW = prevMon ? (wh[prevMon]||{}) : {};
-
-  let rows = tickers
-    .filter(t => (weights[t]||0) > 0)
-    .map(t => ({
-      ticker:t, sector:SECTOR_MAP[t]||'Outros',
-      weight:weights[t]||0, prevWeight:prevW[t]||0,
-      dy:dy[t]||null
-    }))
+  const rows = tickers
+    .filter(t=>(weights[t]||0)>0)
+    .map(t=>({ ticker:t, sector:SECTOR_MAP[t]||'Outros', weight:weights[t]||0, prevW:prevW[t]||0, dy:dy[t]||null }))
     .sort((a,b)=>b.weight-a.weight);
 
   const total = rows.reduce((s,r)=>s+r.weight,0);
 
   let html = `<table class="tbl-ativos">
     <thead><tr>
-      <th>Ativo</th><th>Setor</th>
-      <th class="num">Peso</th>
-      <th class="num">DY (12m)</th>
-      <th class="num">Liquidez</th>
+      <th>Ativo</th><th class="num">Peso</th><th class="num">DY 12m</th>
     </tr></thead><tbody>`;
 
   rows.forEach(r => {
-    const sc = SECTOR_COLORS[r.sector]||'#a0aec0';
-    const textClr = BADGE_TEXT_DARK.has(r.sector)?'#fff':'#fff';
-    const delta = r.weight - r.prevWeight;
-    const deltaStr = delta===0 ? '' : delta>0
-      ? `<span style="color:#38a169;font-size:10px;margin-left:4px">▲ +${delta}%</span>`
-      : `<span style="color:#e53e3e;font-size:10px;margin-left:4px">▼ ${delta}%</span>`;
-
+    const sc   = SECTOR_COLORS[r.sector]||'#a0aec0';
+    const delta = r.weight-r.prevW;
+    const dStr  = delta===0 ? ''
+      : delta>0 ? `<span style="color:#38a169;font-size:8.5px"> ▲+${delta}%</span>`
+                : `<span style="color:#e53e3e;font-size:8.5px"> ▼${delta}%</span>`;
     html += `<tr>
-      <td><strong>${r.ticker}</strong>${deltaStr}</td>
-      <td><span class="badge" style="background:${sc};color:${textClr}">${r.sector}</span></td>
+      <td><strong>${r.ticker}</strong>${dStr}<br>
+        <span class="badge" style="background:${sc};font-size:8px">${r.sector}</span></td>
       <td class="num">${r.weight}%</td>
       <td class="num ${r.dy?'dy-val':''}">${r.dy?r.dy.toFixed(1)+'%':'—'}</td>
-      <td class="num"><span class="liq-badge">D+2</span></td>
     </tr>`;
   });
 
-  html += `<tr style="background:#f7fafc;border-top:2px solid #e2e8f0">
-    <td colspan="2"><strong>TOTAL</strong></td>
+  html += `<tr class="tr-total">
+    <td><strong>TOTAL</strong></td>
     <td class="num"><strong>${total}%</strong></td>
-    <td class="num"></td><td class="num"></td>
+    <td class="num"></td>
   </tr></tbody></table>`;
 
   document.getElementById('tbl-ativos-wrap').innerHTML = html;
+}
+
+// ═══ PERFORMANCE ACUMULADA ═══════════════════════
+function renderLineChart(portName, benchLbl) {
+  // Todos os dias disponíveis
+  const allTickers = [...new Set(allMonths.flatMap(m=>Object.keys(wh[m]||{})))];
+  const allDays = [...new Set(
+    [...allTickers, benchTkr].flatMap(t=>Object.keys(dailyPrices[t]||{}))
+  )].sort();
+  if (!allDays.length) return;
+
+  // Dia base = último dia do mês anterior ao início
+  const [sy,sm] = allMonths[0].split('-').map(Number);
+  const prevSt = sm===1 ? `${sy-1}-12` : `${sy}-${String(sm-1).padStart(2,'0')}`;
+  const baseDay = [...allDays].reverse().find(d=>d.slice(0,7)===prevSt)||allDays[0];
+  const useDays = allDays.filter(d=>d>=baseDay&&d.slice(0,7)<=compMonth);
+
+  function portAccum(day) {
+    const mon = day.slice(0,7);
+    const w = wh[mon]||wh[allMonths.filter(m=>m<=mon).pop()]||{};
+    let acc=0, ws=0;
+    Object.entries(w).forEach(([t,wt])=>{
+      if (!wt) return;
+      const dp=dailyPrices[t]||{};
+      const base=dp[baseDay], cur=dp[day];
+      if (base&&cur){ acc+=(wt/100)*(Number(cur)-Number(base))/Number(base)*100; ws+=wt/100; }
+    });
+    return ws>0 ? acc/ws : null;
+  }
+  function benchAccum(day) {
+    const dp=dailyPrices[benchTkr]||{};
+    const base=dp[baseDay], cur=dp[day];
+    return (base&&cur)?(Number(cur)-Number(base))/Number(base)*100:null;
+  }
+
+  const step = Math.max(1,Math.floor(useDays.length/300));
+  const samp  = useDays.filter((_,i)=>i%step===0||i===useDays.length-1);
+  const lbls  = samp.map(d=>{const dt=new Date(d+'T12:00:00Z');return dt.toLocaleDateString('pt-BR',{month:'2-digit',year:'2-digit'});});
+
+  if (chartInstances['line']) chartInstances['line'].destroy();
+  const ctx = document.getElementById('ch-line').getContext('2d');
+  chartInstances['line'] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:lbls,
+      datasets:[
+        { label:portName, data:samp.map(portAccum),
+          borderColor:'#2c5282', backgroundColor:'rgba(44,82,130,.1)',
+          borderWidth:2.2, pointRadius:0, fill:true, tension:.25 },
+        { label:benchLbl, data:samp.map(benchAccum),
+          borderColor:'#e53e3e', borderDash:[5,4],
+          borderWidth:1.5, pointRadius:0, fill:false, tension:.25 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:10},usePointStyle:true,padding:14}},
+        tooltip:{callbacks:{label:c=>` ${c.raw!=null?c.raw.toFixed(2):'—'}%`}}
+      },
+      scales:{
+        x:{ticks:{font:{size:8.5},maxTicksLimit:16},grid:{color:'#f0f4f8'}},
+        y:{ticks:{callback:v=>v+'%',font:{size:9}},grid:{color:'#f0f4f8'}}
+      }
+    }
+  });
+}
+
+// ═══ DRAWDOWN ════════════════════════════════════
+function renderDrawdown() {
+  const allTickers = [...new Set(allMonths.flatMap(m=>Object.keys(wh[m]||{})))];
+  const allDays = [...new Set(
+    allTickers.flatMap(t=>Object.keys(dailyPrices[t]||{}))
+  )].sort();
+  if (!allDays.length) return;
+
+  const [sy,sm] = allMonths[0].split('-').map(Number);
+  const prevSt = sm===1 ? `${sy-1}-12` : `${sy}-${String(sm-1).padStart(2,'0')}`;
+  const baseDay = [...allDays].reverse().find(d=>d.slice(0,7)===prevSt)||allDays[0];
+  const useDays = allDays.filter(d=>d>=baseDay&&d.slice(0,7)<=compMonth);
+
+  // Computa valor do portfólio dia a dia (retorno composto)
+  let portVal = 100;
+  let runMax  = 100;
+  const ddArr = [];
+  const step  = Math.max(1,Math.floor(useDays.length/300));
+  const sampDD  = [];
+  const sampLbl = [];
+
+  for (let i=0; i<useDays.length; i++) {
+    const day=useDays[i], prev=i>0?useDays[i-1]:null;
+    if (prev) {
+      const mon=day.slice(0,7);
+      const w=wh[mon]||wh[allMonths.filter(m=>m<=mon).pop()]||{};
+      let dayRet=0, ws=0;
+      Object.entries(w).forEach(([t,wt])=>{
+        if (!wt) return;
+        const dp=dailyPrices[t]||{};
+        const cur=Number(dp[day]||0), pv=Number(dp[prev]||0);
+        if (cur&&pv){ dayRet+=(wt/100)*(cur-pv)/pv; ws+=wt/100; }
+      });
+      portVal*=(1+(ws>0?dayRet/ws:0));
+    }
+    if (portVal>runMax) runMax=portVal;
+    const dd=runMax>0?(portVal-runMax)/runMax*100:0;
+    if (i%step===0||i===useDays.length-1) {
+      sampDD.push(+dd.toFixed(3));
+      const dt=new Date(day+'T12:00:00Z');
+      sampLbl.push(dt.toLocaleDateString('pt-BR',{month:'2-digit',year:'2-digit'}));
+    }
+  }
+
+  if (chartInstances['dd']) chartInstances['dd'].destroy();
+  const ctx = document.getElementById('ch-dd').getContext('2d');
+  chartInstances['dd'] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:sampLbl,
+      datasets:[{
+        label:'Drawdown', data:sampDD,
+        borderColor:'#e53e3e', backgroundColor:'rgba(229,62,62,.15)',
+        borderWidth:1.5, pointRadius:0, fill:true, tension:.15
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.raw!=null?c.raw.toFixed(2):'—'}%`}}
+      },
+      scales:{
+        x:{ticks:{font:{size:8.5},maxTicksLimit:16},grid:{color:'#f0f4f8'}},
+        y:{ticks:{callback:v=>v+'%',font:{size:9}},grid:{color:'#f0f4f8'},max:0}
+      }
+    }
+  });
+}
+
+// ═══ RENTABILIDADE POR AÇÃO (BARRAS) ═════════════
+function renderBarChart(portName, benchLbl, tickers, compLabel) {
+  // Mostra retorno do compMonth
+  const idx    = allMonths.indexOf(compMonth);
+  const prevM  = idx>0 ? allMonths[idx-1] : null;
+  if (!prevM) return;
+
+  const wComp = wh[compMonth]||{};
+  const items = [];
+
+  tickers.forEach(ticker => {
+    const wt = wComp[ticker]||0;
+    if (!wt) return;
+    const c=lastClose(ticker,compMonth), p=lastClose(ticker,prevM);
+    if (!c||!p) return;
+    const ret=(c-p)/p*100;
+    items.push({label:ticker, ret:+ret.toFixed(2), weight:wt, contrib:+(wt/100*ret).toFixed(2), isBench:false});
+  });
+
+  const bc=lastClose(benchTkr,compMonth), bp=lastClose(benchTkr,prevM);
+  if (bc&&bp) items.push({label:benchLbl, ret:+((bc-bp)/bp*100).toFixed(2), weight:null, contrib:null, isBench:true});
+
+  items.sort((a,b)=>b.ret-a.ret);
+
+  const h = Math.max(280, items.length*28+80);
+  document.getElementById('ch-bar-wrap').style.height = h+'px';
+
+  const ppPlugin = {
+    id:'ppLabels',
+    afterDraw(chart){
+      const c2=chart.ctx, meta=chart.getDatasetMeta(0);
+      const zx=chart.scales.x.getPixelForValue(0);
+      c2.save(); c2.font='600 9px Segoe UI,Arial,sans-serif';
+      c2.textAlign='left'; c2.textBaseline='middle';
+      meta.data.forEach((bar,i)=>{
+        const it=items[i];
+        if (!it||it.isBench||it.contrib==null) return;
+        c2.fillStyle=it.contrib>=0?'#276749':'#c53030';
+        c2.fillText(`${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`, Math.max(bar.x,zx)+4, bar.y);
+      });
+      c2.restore();
+    }
+  };
+
+  if (chartInstances['bar']) chartInstances['bar'].destroy();
+  const ctx = document.getElementById('ch-bar').getContext('2d');
+  chartInstances['bar'] = new Chart(ctx, {
+    type:'bar', plugins:[ppPlugin],
+    data:{
+      labels:items.map(it=>it.label),
+      datasets:[{
+        data:items.map(it=>it.ret),
+        backgroundColor:items.map(it=>it.isBench?'rgba(113,128,150,.65)':it.ret>=0?'rgba(56,161,105,.82)':'rgba(229,62,62,.78)'),
+        borderColor:items.map(it=>it.isBench?'#718096':it.ret>=0?'#276749':'#c53030'),
+        borderWidth:1.5, borderRadius:3, borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false,
+      layout:{padding:{right:52}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const it=items[c.dataIndex];
+          let s=` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`;
+          if (it&&!it.isBench) s+=`   peso: ${it.weight}%   contrib: ${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`;
+          return s;
+        }}}
+      },
+      scales:{
+        x:{ grid:{color:'#edf2f7'}, ticks:{callback:v=>v+'%',font:{size:9}} },
+        y:{ grid:{display:false}, ticks:{font:{size:10.5,weight:'600'},
+            color:ctx2=>(!items[ctx2.index]||items[ctx2.index].isBench)?'#718096':'#2d3748'} }
+      }
+    }
+  });
 }
 
 // ── START ──
