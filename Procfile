@@ -1,1 +1,1 @@
-web: python serve.py --sem-browser
+web: python serve.py --sem-browser --so-servir

@@ -20,6 +20,9 @@ http_cache.sqlite
 *.sqlite
 pipeline_outputs/
 
+# ─── Pasta de arquivos históricos (snapshots antigos) ─────
+arquivo/
+
 # ─── PDFs gerados ─────────────────────────────────────────
 factsheet_*.pdf
 
