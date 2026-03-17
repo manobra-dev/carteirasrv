@@ -962,17 +962,18 @@ async function exportPDF() {
         windowHeight: sheet.scrollHeight,
       });
 
-      // PNG: sem compressão com perda — ideal para texto e gráficos
-      const imgData  = canvas.toDataURL('image/png');
+      // JPEG qualidade máxima: jsPDF embute o JPEG nativamente no PDF sem
+      // reprocessamento — mais nítido que PNG (que o jsPDF recomprime internamente).
+      const imgData  = canvas.toDataURL('image/jpeg', 1.0);
       // Escala a imagem para ocupar toda a largura da página A4
       const imgW_mm  = pageW - margin * 2;
       const imgH_mm  = (canvas.height / canvas.width) * imgW_mm;
 
       if (i > 0) pdf.addPage();
 
-      // Se a imagem for mais alta que a página, reduz proporcionalmente
+      // 'NONE' = sem compressão adicional no addImage
       const finalH = Math.min(imgH_mm, pageH - margin * 2);
-      pdf.addImage(imgData, 'PNG', margin, margin, imgW_mm, finalH);
+      pdf.addImage(imgData, 'JPEG', margin, margin, imgW_mm, finalH, undefined, 'NONE');
     }
 
     // Nome do arquivo = título da aba (ex: Factsheet_Carteira_de_Ações_2026-02)
