@@ -35,7 +35,7 @@ if /i not "%BRANCH%"=="main" (
 REM ── Busca dados frescos via yfinance ─────────────────────
 echo.
 echo   Buscando cotacoes atualizadas (yfinance + brapi)...
-python serve.py --sem-browser
+python serve.py --so-atualizar
 if errorlevel 1 (
   echo   ERRO ao rodar serve.py. Verifique o Python e as dependencias.
   exit /b 1

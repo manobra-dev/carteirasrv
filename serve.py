@@ -1266,6 +1266,7 @@ def parse_args():
     p.add_argument("--token",           default=None,                    help="Token brapi.dev (grátis em brapi.dev)")
     p.add_argument("--sem-browser",     action="store_true",             help="Não abre o browser automaticamente")
     p.add_argument("--so-servir",       action="store_true",             help="Só inicia o servidor (sem refetch)")
+    p.add_argument("--so-atualizar",    action="store_true",             help="Só atualiza o JSON e sai (sem servidor — ideal para scripts/CI)")
     p.add_argument("--sem-fundamentus", action="store_true",             help="Pula Fundamentus; usa só brapi.dev para DY")
     p.add_argument("--sem-yfinance",    action="store_true",             help="Usa brapi.dev para preços (sem retorno total por dividendos)")
     p.add_argument("--html",            default="dashboard_carteiras_v2.html", help="Arquivo HTML a abrir")
@@ -1298,6 +1299,29 @@ if __name__ == "__main__":
             cmd = [sys.executable, str(factsheet_script), "--mes", mes_pdf]
             subprocess.run(cmd, cwd=str(SCRIPT_DIR))
         sys.exit(0)
+
+    # ── Modo só-atualizar: busca dados e sai sem subir servidor ──────────────
+    if getattr(args, "so_atualizar", False):
+        try:
+            start_date = datetime.strptime(args.inicio, "%Y-%m").replace(day=1)
+        except ValueError:
+            start_date = datetime(2024, 6, 1)
+        print("  ⏳  Buscando dados de mercado (pode levar alguns minutos)…")
+        try:
+            data = build_dashboard_json(
+                start_date,
+                token=args.token or BRAPI_TOKEN,
+                use_fundamentus=not args.sem_fundamentus,
+                use_yfinance=not getattr(args, "sem_yfinance", False),
+            )
+            with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            n = len(data["tickers_found"])
+            print(f"\n  ✅  {n} ativos salvos → {OUTPUT_JSON.name}")
+            sys.exit(0)
+        except Exception as e:
+            print(f"\n  ✗  Erro ao buscar dados: {e}")
+            sys.exit(1)
 
     # ── Armazena parâmetros para o auto-refresh ──
     try:
