@@ -115,13 +115,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sect{margin-bottom:10px!important}
   .two-col{gap:10px!important}
   .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
-  /* Contém o canvas dentro do wrapper — evita que transborde sobre o texto */
+  /* Contém o canvas dentro do wrapper — sem resize(), isso é tudo que precisamos */
   .ch-wrap{overflow:hidden!important}
-  /* Fallback de altura caso o JS não rode (ex: impressão direta) */
-  #ch-line-wrap{height:200px!important;max-height:200px!important}
-  #ch-dd-wrap{height:115px!important;max-height:115px!important}
-  #ch-bar-wrap{height:270px!important;max-height:270px!important}
-  #ch-setor-wrap{height:210px!important;max-height:210px!important}
 }
 </style>
 </head>
@@ -870,8 +865,9 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
 
   items.sort((a,b)=>b.ret-a.ret);
 
-  // Cap de altura para não gerar terceira página (máx ~320px cabe na p.2)
-  const h = Math.max(220, Math.min(320, items.length*22+60));
+  // Altura calculada para caber na p.2 sem resize no print (overflow:hidden cuida do resto)
+  // 20px por item + 50px base, máx 265px garante que não vaza para p.3
+  const h = Math.max(200, Math.min(265, items.length*20+50));
   document.getElementById('ch-bar-wrap').style.height = h+'px';
 
   const ppPlugin = {
@@ -925,34 +921,12 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
   });
 }
 
-// ── Redimensiona gráficos antes de imprimir ──
-// O Chrome/Windows não aplica o CSS de print antes do beforeprint, por isso
-// definimos as alturas diretamente via JS (mais confiável que @media print).
-const PRINT_HEIGHTS = {
-  'ch-line-wrap': 200,
-  'ch-dd-wrap':   115,
-  'ch-bar-wrap':  270,
-  'ch-setor-wrap':210,
-};
-
-window.addEventListener('beforeprint', () => {
-  Object.entries(PRINT_HEIGHTS).forEach(([id, h]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.dataset.screenH = el.style.height;   // salva altura original
-    el.style.height = h + 'px';
-  });
-  Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
-});
-
-window.addEventListener('afterprint', () => {
-  Object.entries(PRINT_HEIGHTS).forEach(([id]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.style.height = el.dataset.screenH || '';  // restaura altura original
-  });
-  Object.values(chartInstances).forEach(c => { try { c.resize(); } catch(e){} });
-});
+// ── Print: sem resize() do Chart.js ──
+// IMPORTANTE: não chamamos chart.resize() no beforeprint.
+// O resize() faz o Chart.js recalcular a escala com a largura menor do
+// papel A4, truncando o eixo X e cortando os últimos meses do gráfico.
+// Em vez disso, o canvas fica com o tamanho de tela e é contido pelo
+// overflow:hidden do .ch-wrap definido no @media print abaixo.
 
 // ── START ──
 init();
