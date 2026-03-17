@@ -108,7 +108,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sheet{max-width:100%!important;margin:0!important;box-shadow:none!important;border-radius:0!important;break-after:page;overflow:visible!important}
   .sheet:last-of-type{break-after:auto}
   .pg-body{padding:10px 12px 12px!important}
-  .pg-header{padding:10px 14px!important}
+  /* Garante fundo azul mesmo que o Chrome não imprima gradients */
+  .pg-header{padding:10px 14px!important;background:#1a2d5a!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .logo-img{height:36px!important}
   .stat-row{gap:6px!important;margin-bottom:10px!important}
   .sc{padding:7px 8px!important}
@@ -124,7 +125,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
 
 <!-- TOOLBAR -->
 <div class="toolbar">
-  <button class="btn-print" onclick="window.print()">⬇ Salvar como PDF</button>
+  <button class="btn-print" onclick="exportPDF()">⬇ Salvar como PDF</button>
   <span class="toolbar-note" id="toolbar-note">Selecione <strong>Salvar como PDF</strong> no diálogo de impressão para exportar</span>
 </div>
 
@@ -921,13 +922,15 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
   });
 }
 
-// ── Print: converte canvas → imagem antes de imprimir ──
-// Problema: o canvas é renderizado na largura da tela (~810px). O papel A4
-// tem ~726px — o Chrome corta o lado direito do canvas, apagando os últimos
-// meses do gráfico. resize() também não resolve pois reescalona o eixo X.
-// Solução: captura o canvas como PNG no momento do print e substitui por
-// uma <img>. O PDF recebe exatamente o que aparece na tela, sem cortes.
-window.addEventListener('beforeprint', () => {
+// ── Export PDF: converte canvas → <img> ANTES de chamar window.print() ──
+// O canvas é renderizado na largura da tela (~810px). O papel A4 tem ~726px:
+// o Chrome CORTA o canvas no PDF. O beforeprint tem problema de timing.
+// Solução robusta: converter todos os canvas para PNG *sincronamente* no
+// próprio botão, imprimir, depois restaurar — sem depender de eventos.
+function exportPDF() {
+  const snapshots = [];
+
+  // 1. Converte cada canvas para <img> (captura exata da tela)
   Object.entries(chartInstances).forEach(([key, chart]) => {
     try {
       const canvas = chart.canvas;
@@ -938,20 +941,25 @@ window.addEventListener('beforeprint', () => {
       img.style.display     = 'block';
       img.dataset.printChart = key;
       canvas.parentElement.insertBefore(img, canvas);
-      canvas.style.display = 'none';
+      canvas.style.display  = 'none';
+      snapshots.push({ img, canvas });
     } catch(e) {}
   });
-});
 
-window.addEventListener('afterprint', () => {
-  document.querySelectorAll('img[data-print-chart]').forEach(img => {
-    try {
-      const canvas = img.nextElementSibling;
-      if (canvas) canvas.style.display = '';
-      img.remove();
-    } catch(e) {}
+  // 2. Pequena pausa para o DOM renderizar as imagens, depois imprime
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+
+      // 3. Restaura os canvas depois do diálogo de impressão fechar
+      setTimeout(() => {
+        snapshots.forEach(({ img, canvas }) => {
+          try { canvas.style.display = ''; img.remove(); } catch(e) {}
+        });
+      }, 500);
+    });
   });
-});
+}
 
 // ── START ──
 init();
