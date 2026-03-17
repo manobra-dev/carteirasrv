@@ -115,8 +115,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
   .sect{margin-bottom:10px!important}
   .two-col{gap:10px!important}
   .sect-title{margin-bottom:7px!important;padding-bottom:4px!important}
-  /* Contém o canvas dentro do wrapper — sem resize(), isso é tudo que precisamos */
-  .ch-wrap{overflow:hidden!important}
+  /* canvas é substituído por <img> no beforeprint — img se ajusta sozinha */
+  .ch-wrap img{max-width:100%!important;height:auto!important}
 }
 </style>
 </head>
@@ -921,12 +921,37 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
   });
 }
 
-// ── Print: sem resize() do Chart.js ──
-// IMPORTANTE: não chamamos chart.resize() no beforeprint.
-// O resize() faz o Chart.js recalcular a escala com a largura menor do
-// papel A4, truncando o eixo X e cortando os últimos meses do gráfico.
-// Em vez disso, o canvas fica com o tamanho de tela e é contido pelo
-// overflow:hidden do .ch-wrap definido no @media print abaixo.
+// ── Print: converte canvas → imagem antes de imprimir ──
+// Problema: o canvas é renderizado na largura da tela (~810px). O papel A4
+// tem ~726px — o Chrome corta o lado direito do canvas, apagando os últimos
+// meses do gráfico. resize() também não resolve pois reescalona o eixo X.
+// Solução: captura o canvas como PNG no momento do print e substitui por
+// uma <img>. O PDF recebe exatamente o que aparece na tela, sem cortes.
+window.addEventListener('beforeprint', () => {
+  Object.entries(chartInstances).forEach(([key, chart]) => {
+    try {
+      const canvas = chart.canvas;
+      const img    = document.createElement('img');
+      img.src               = canvas.toDataURL('image/png', 1.0);
+      img.style.width       = '100%';
+      img.style.height      = 'auto';
+      img.style.display     = 'block';
+      img.dataset.printChart = key;
+      canvas.parentElement.insertBefore(img, canvas);
+      canvas.style.display = 'none';
+    } catch(e) {}
+  });
+});
+
+window.addEventListener('afterprint', () => {
+  document.querySelectorAll('img[data-print-chart]').forEach(img => {
+    try {
+      const canvas = img.nextElementSibling;
+      if (canvas) canvas.style.display = '';
+      img.remove();
+    } catch(e) {}
+  });
+});
 
 // ── START ──
 init();
