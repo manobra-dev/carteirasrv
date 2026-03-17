@@ -953,7 +953,7 @@ async function exportPDF() {
 
       // html2canvas captura exatamente o que aparece na tela
       const canvas = await html2canvas(sheet, {
-        scale: 2,              // 2× resolução para texto nítido
+        scale: 3,              // 3× resolução — texto e gráficos nítidos no PDF
         useCORS: true,         // carrega imagens cross-origin (logo)
         backgroundColor: '#ffffff',
         logging: false,
@@ -962,7 +962,8 @@ async function exportPDF() {
         windowHeight: sheet.scrollHeight,
       });
 
-      const imgData  = canvas.toDataURL('image/jpeg', 0.92);
+      // PNG: sem compressão com perda — ideal para texto e gráficos
+      const imgData  = canvas.toDataURL('image/png');
       // Escala a imagem para ocupar toda a largura da página A4
       const imgW_mm  = pageW - margin * 2;
       const imgH_mm  = (canvas.height / canvas.width) * imgW_mm;
@@ -971,7 +972,7 @@ async function exportPDF() {
 
       // Se a imagem for mais alta que a página, reduz proporcionalmente
       const finalH = Math.min(imgH_mm, pageH - margin * 2);
-      pdf.addImage(imgData, 'JPEG', margin, margin, imgW_mm, finalH);
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW_mm, finalH);
     }
 
     // Nome do arquivo = título da aba (ex: Factsheet_Carteira_de_Ações_2026-02)
