@@ -19,7 +19,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#2d3748;mi
 .hsubtitle{font-size:12px;opacity:.72;margin-top:4px}
 .perf-row{display:flex;gap:10px;flex-wrap:wrap}
 .pill{background:rgba(255,255,255,.14);border-radius:12px;padding:8px 16px;text-align:center;min-width:120px}
-.pill .plabel{font-size:9px;text-transform:uppercase;letter-spacing:.8px;opacity:.7}
+.pill .plabel{font-size:9px;text-transform:uppercase;letter-spacing:.8px;opacity:.7;line-height:1.5}
 .pill .pval{font-size:18px;font-weight:700;margin-top:2px}
 .pval.pos{color:#68d391}.pval.neg{color:#fc8181}.pval.neutral{color:#fbd38d}
 .pill .pdiff{font-size:10px;margin-top:4px;opacity:.9;letter-spacing:.02em}
@@ -837,6 +837,40 @@ function updateHeaderPills() {
     return (curr - prev) / prev * 100;
   }
 
+  // Retorno composto para uma lista arbitrária de meses (YTD, 12M, etc.)
+  function calcRetForPeriod(portKey, monthsList) {
+    if (!monthsList || monthsList.length === 0) return null;
+    const wHist   = localJson.weights_history?.[portKey] || {};
+    const allMons = Object.keys(wHist).sort();
+    let cum = 0;
+    for (const mon of monthsList) {
+      const idx = allMons.indexOf(mon);
+      if (idx < 1) continue;
+      const prevMon = allMons[idx - 1];
+      const wMonth  = wHist[mon];
+      if (!wMonth) continue;
+      let wRet = 0, wSum = 0;
+      Object.entries(wMonth).forEach(([tk, w]) => {
+        if (!w) return;
+        const c = lastMonthClose(tk, mon), p = lastMonthClose(tk, prevMon);
+        if (!c || !p || isNaN(c) || isNaN(p)) return;
+        wRet += (w / 100) * ((c - p) / p);
+        wSum += w / 100;
+      });
+      if (wSum > 0) cum = (1 + cum / 100) * (1 + (wRet / wSum) * 100 / 100) * 100 - 100;
+    }
+    return cum;
+  }
+
+  // Listas de meses para YTD e 12M
+  const [eyStr] = _endMonth.split('-');
+  const allMonsA = Object.keys(localJson.weights_history?.['acoes']       || {}).sort();
+  const allMonsD = Object.keys(localJson.weights_history?.['dividendos']  || {}).sort();
+  const ytdAcoes   = calcRetForPeriod('acoes',      allMonsA.filter(m => m.startsWith(eyStr) && m <= _endMonth));
+  const ytdDiv     = calcRetForPeriod('dividendos', allMonsD.filter(m => m.startsWith(eyStr) && m <= _endMonth));
+  const ret12Acoes = calcRetForPeriod('acoes',      allMonsA.filter(m => m <= _endMonth).slice(-12));
+  const ret12Div   = calcRetForPeriod('dividendos', allMonsD.filter(m => m <= _endMonth).slice(-12));
+
   // Helpers de formatação
   function fmtPill(v) {
     if (v === null) return '—';
@@ -866,7 +900,12 @@ function updateHeaderPills() {
   const elAcoesLbl  = document.getElementById('pill-acoes-lbl');
   const elAcoesDiff = document.getElementById('pill-acoes-diff');
   if (elAcoesVal)  { elAcoesVal.textContent = fmtPill(retAcoes); elAcoesVal.className = `pval ${valClass(retAcoes)}`; }
-  if (elAcoesLbl)  elAcoesLbl.textContent = monthLabel;
+  if (elAcoesLbl) {
+    const extra = [];
+    if (ytdAcoes   !== null) extra.push(`YTD: ${fmtPill(ytdAcoes)}`);
+    if (ret12Acoes !== null) extra.push(`12M: ${fmtPill(ret12Acoes)}`);
+    elAcoesLbl.innerHTML = monthLabel + (extra.length ? '<br>' + extra.join('&nbsp;&nbsp;') : '');
+  }
   if (elAcoesDiff) {
     if (diffAcoes !== null) {
       elAcoesDiff.textContent = `Δ IBOV: ${diffAcoes >= 0 ? '+' : ''}${diffAcoes.toFixed(2).replace('.', ',')}%`;
@@ -879,7 +918,12 @@ function updateHeaderPills() {
   const elDivLbl  = document.getElementById('pill-div-lbl');
   const elDivDiff = document.getElementById('pill-div-diff');
   if (elDivVal)  { elDivVal.textContent = fmtPill(retDiv); elDivVal.className = `pval ${valClass(retDiv)}`; }
-  if (elDivLbl)  elDivLbl.textContent = monthLabel;
+  if (elDivLbl) {
+    const extra = [];
+    if (ytdDiv   !== null) extra.push(`YTD: ${fmtPill(ytdDiv)}`);
+    if (ret12Div !== null) extra.push(`12M: ${fmtPill(ret12Div)}`);
+    elDivLbl.innerHTML = monthLabel + (extra.length ? '<br>' + extra.join('&nbsp;&nbsp;') : '');
+  }
   if (elDivDiff) {
     if (diffDiv !== null) {
       elDivDiff.textContent = `${diffLabelDiv}: ${diffDiv >= 0 ? '+' : ''}${diffDiv.toFixed(2).replace('.', ',')}%`;

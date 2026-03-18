@@ -476,8 +476,8 @@ function computeStats() {
   });
 
   // ── Sharpe Ratio ──────────────────────────────────────
-  // Taxa livre de risco: CDI ≈ 10.75% a.a. (média do período — ajustar se necessário)
-  const RF_MONTHLY_PCT = ((1 + 0.1075) ** (1/12) - 1) * 100; // ≈ 0.854%/mês
+  // Taxa livre de risco: Selic/CDI ≈ 14.75% a.a. (meta Selic atual)
+  const RF_MONTHLY_PCT = ((1 + 0.1475) ** (1/12) - 1) * 100; // ≈ 1.149%/mês
   const excessRets = rets.map(r => r - RF_MONTHLY_PCT);
   const meanExcess = excessRets.reduce((s, r) => s + r, 0) / excessRets.length;
   const sharpe = annualVol > 0 ? (meanExcess * 12) / annualVol : null;
@@ -531,7 +531,7 @@ function renderStatCards(s, activeCount, benchShort) {
     <div class="sc ${s.sharpe!=null?(s.sharpe>=0?'green':'red'):'amber'}">
       <div class="sc-lbl">Sharpe Ratio</div>
       <div class="sc-val">${s.sharpe!=null?s.sharpe.toFixed(2):'—'}</div>
-      <div class="sc-sub">CDI ref. ~10.75% a.a.</div>
+      <div class="sc-sub">Selic/CDI ~14.75% a.a.</div>
     </div>
     <div class="sc red">
       <div class="sc-lbl">Max Drawdown</div>
@@ -643,7 +643,7 @@ function renderInfoPanel(s, portName, benchShort, benchLbl) {
     null,
     { lbl:'Retorno últimos 12m',     val: fmtPct(s.ret12),         pos: s.ret12>=0 },
     { lbl:'Volatilidade anual.',     val: s.annualVol!=null ? s.annualVol.toFixed(1)+'%' : '—', plain:true },
-    { lbl:'Sharpe (CDI ref.)',       val: s.sharpe!=null ? s.sharpe.toFixed(2) : '—', plain:true },
+    { lbl:'Sharpe (Selic ref.)',      val: s.sharpe!=null ? s.sharpe.toFixed(2) : '—', plain:true },
     { lbl:'Beta vs '+benchShort,     val: s.beta!=null ? s.beta.toFixed(2) : '—', plain:true },
     { lbl:'Melhor mês',              val: fmtAbs(s.maxMonthly),    pos: true },
     { lbl:'Pior mês',                val: fmtAbs(s.minMonthly),    pos: s.minMonthly>=0 },
