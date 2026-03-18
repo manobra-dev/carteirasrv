@@ -862,14 +862,55 @@ function updateHeaderPills() {
     return cum;
   }
 
+  // Retorno composto de um benchmark (ticker) para uma lista de meses
+  function calcBenchRetForPeriod(ticker, monthsList) {
+    if (!monthsList || monthsList.length === 0) return null;
+    let cum = 0;
+    for (const mon of monthsList) {
+      // mês anterior ao mon na lista de meses do próprio ticker
+      const pm = localJson.prices_daily?.[ticker] || localJson.prices?.[ticker];
+      if (!pm) continue;
+      const allDayKeys = Object.keys(pm).sort();
+      // último fechamento do mês anterior: pega o mês YYYY-MM anterior
+      const [my, mm] = mon.split('-').map(Number);
+      const prevMm = mm === 1 ? 12 : mm - 1;
+      const prevMy = mm === 1 ? my - 1 : my;
+      const prevMonKey = `${prevMy}-${String(prevMm).padStart(2,'0')}`;
+      const c = lastMonthClose(ticker, mon);
+      const p = lastMonthClose(ticker, prevMonKey);
+      if (!c || !p || isNaN(c) || isNaN(p)) continue;
+      cum = (1 + cum / 100) * (1 + (c - p) / p * 100 / 100) * 100 - 100;
+    }
+    return cum;
+  }
+
   // Listas de meses para YTD e 12M
   const [eyStr] = _endMonth.split('-');
   const allMonsA = Object.keys(localJson.weights_history?.['acoes']       || {}).sort();
   const allMonsD = Object.keys(localJson.weights_history?.['dividendos']  || {}).sort();
+
+  // Meses disponíveis nos preços do benchmark (para 12M)
+  function benchMonths(ticker) {
+    const pd = localJson.prices_daily?.[ticker] || {};
+    const pm = localJson.prices?.[ticker] || {};
+    const keys = [...new Set([
+      ...Object.keys(pd).map(k => k.slice(0,7)),
+      ...Object.keys(pm)
+    ])].filter(k => /^\d{4}-\d{2}$/.test(k)).sort();
+    return keys;
+  }
+  const bMonsBova = benchMonths('BOVA11');
+  const bMonsDivo = benchMonths('DIVO11');
+
   const ytdAcoes   = calcRetForPeriod('acoes',      allMonsA.filter(m => m.startsWith(eyStr) && m <= _endMonth));
   const ytdDiv     = calcRetForPeriod('dividendos', allMonsD.filter(m => m.startsWith(eyStr) && m <= _endMonth));
   const ret12Acoes = calcRetForPeriod('acoes',      allMonsA.filter(m => m <= _endMonth).slice(-12));
   const ret12Div   = calcRetForPeriod('dividendos', allMonsD.filter(m => m <= _endMonth).slice(-12));
+
+  const ytdBova  = calcBenchRetForPeriod('BOVA11', bMonsBova.filter(m => m.startsWith(eyStr) && m <= _endMonth));
+  const ytdDivo  = calcBenchRetForPeriod('DIVO11', bMonsDivo.filter(m => m.startsWith(eyStr) && m <= _endMonth));
+  const ret12Bova = calcBenchRetForPeriod('BOVA11', bMonsBova.filter(m => m <= _endMonth).slice(-12));
+  const ret12Divo = calcBenchRetForPeriod('DIVO11', bMonsDivo.filter(m => m <= _endMonth).slice(-12));
 
   // Helpers de formatação
   function fmtPill(v) {
@@ -935,13 +976,23 @@ function updateHeaderPills() {
   const elBovaVal = document.getElementById('pill-bova-val');
   const elBovaLbl = document.getElementById('pill-bova-lbl');
   if (elBovaVal) { elBovaVal.textContent = fmtPill(retBova); elBovaVal.className = `pval ${valClass(retBova)}`; }
-  if (elBovaLbl) elBovaLbl.textContent = monthLabel;
+  if (elBovaLbl) {
+    const extra = [];
+    if (ytdBova   !== null) extra.push(`YTD: ${fmtPill(ytdBova)}`);
+    if (ret12Bova !== null) extra.push(`12M: ${fmtPill(ret12Bova)}`);
+    elBovaLbl.innerHTML = monthLabel + (extra.length ? '<br>' + extra.join('&nbsp;&nbsp;') : '');
+  }
 
   // Pill IDIV (DIVO11 — benchmark Carteira de Dividendos)
   const elDivoVal = document.getElementById('pill-divo-val');
   const elDivoLbl = document.getElementById('pill-divo-lbl');
   if (elDivoVal) { elDivoVal.textContent = fmtPill(retDivo); elDivoVal.className = `pval ${valClass(retDivo)}`; }
-  if (elDivoLbl) elDivoLbl.textContent = monthLabel;
+  if (elDivoLbl) {
+    const extra = [];
+    if (ytdDivo   !== null) extra.push(`YTD: ${fmtPill(ytdDivo)}`);
+    if (ret12Divo !== null) extra.push(`12M: ${fmtPill(ret12Divo)}`);
+    elDivoLbl.innerHTML = monthLabel + (extra.length ? '<br>' + extra.join('&nbsp;&nbsp;') : '');
+  }
 }
 
 // ── Normaliza série histórica: 1 ponto por mês ───────────
