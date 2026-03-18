@@ -30,7 +30,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
 .hdr-title{font-size:16px;font-weight:700;letter-spacing:.3px}
 .hdr-sub{font-size:10px;opacity:.72;margin-top:2px}
 .hdr-pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px}
-.pill{background:rgba(255,255,255,.15);border-radius:10px;padding:5px 14px;text-align:center;min-width:88px}
+.pill{background:rgba(255,255,255,.15);border-radius:10px;padding:5px 12px;text-align:center;min-width:76px}
 .pill .pl{font-size:8px;text-transform:uppercase;letter-spacing:.6px;opacity:.75}
 .pill .pv{font-size:15px;font-weight:700;margin-top:2px}
 .pos{color:#9ae6b4}.neg{color:#fc8181}.neut{color:#fbd38d}
@@ -96,6 +96,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#e8edf4;color:#2d3748;fo
 
 /* ── FOOTER ── */
 .pg-footer{font-size:8.5px;color:#b0bec5;padding:8px 18px;border-top:1px solid #e8edf5;line-height:1.5}
+
+/* ── STRATEGY ── */
+.strategy-desc{background:#f0f6ff;border-left:3px solid #2c5282;padding:8px 12px;border-radius:0 6px 6px 0;font-size:11px;color:#2d3748;line-height:1.6;margin-bottom:12px}
 
 /* ── LOADING ── */
 .loading{text-align:center;padding:60px;color:#a0aec0;font-size:14px}
@@ -302,12 +305,18 @@ function render() {
   const stats = computeStats();
 
   // Footer
-  const footerTxt = `⚠ Aviso Legal: Documento exclusivo para uso interno da Eleva Multi-Family Office. Não constitui recomendação de investimento. Rentabilidades passadas não garantem resultados futuros. Dados: ${json.generated_at||'—'} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  const footerTxt = `⚠ Aviso Legal: Documento exclusivo para clientes da Eleva Multi-Family Office. Não constitui oferta pública de valores mobiliários nem recomendação de investimento. Rentabilidades passadas não garantem resultados futuros. Elaborado com base em preços públicos de mercado. Dados: ${json.generated_at||'—'} · Gerado em ${new Date().toLocaleString('pt-BR')}`;
   document.getElementById('footer1').textContent = footerTxt;
   document.getElementById('footer2').textContent = footerTxt;
 
   // ─── PÁGINA 1 ───────────────────────────────
+  const strategyTexts = {
+    'acoes':      'Carteira temática de <strong>ações brasileiras</strong> com seleção por qualidade de negócio e valuation atrativo. Concentrada em 15–20 ativos com maior potencial relativo ao Ibovespa. Rebalanceamento mensal.',
+    'dividendos': 'Carteira temática focada em <strong>empresas pagadoras de dividendos</strong> consistentes, benchmarkada ao IDIV. Seleção por sustentabilidade de proventos e solidez financeira. Rebalanceamento mensal.',
+  };
+
   document.getElementById('body1').innerHTML = `
+    <div class="strategy-desc">${strategyTexts[PORTFOLIO_KEY] || ''}</div>
     <div class="stat-row" id="stat-row"></div>
 
     <div class="sect">
@@ -384,21 +393,42 @@ function renderPills(portName, benchShort, compLabel) {
   const cls  = v => v==null ? 'neut' : v>=0 ? 'pos' : 'neg';
   const dcls = v => v==null ? 'dneut' : v>=0 ? 'dpos' : 'dneg';
 
+  // ── Retornos multi-período para pills ────────────────
+  const [pillCY] = compMonth.split('-');
+  let ytd = 0;
+  allMonths.filter(m => m.startsWith(pillCY) && m <= compMonth)
+    .forEach(m => { const pr=portMonRet(m); if(pr!=null) ytd=(1+ytd/100)*(1+pr/100)*100-100; });
+
+  let ret12p = 0;
+  allMonths.filter(m => m <= compMonth).slice(-12)
+    .forEach(m => { const pr=portMonRet(m); if(pr!=null) ret12p=(1+ret12p/100)*(1+pr/100)*100-100; });
+
+  let cumP = 0;
+  allMonths.filter(m => m <= compMonth)
+    .forEach(m => { const pr=portMonRet(m); if(pr!=null) cumP=(1+cumP/100)*(1+pr/100)*100-100; });
+
   document.getElementById('h-pills1').innerHTML = `
     <div class="pill">
-      <div class="pl">Carteira</div>
+      <div class="pl">Mês — Carteira</div>
       <div class="pv ${cls(portRet)}">${fmt(portRet)}</div>
-      <div class="pl">mês</div>
+      <div class="pl" style="font-size:7px">${benchShort}: ${fmt(benchRet)}</div>
     </div>
     <div class="pill">
-      <div class="pl">${benchShort}</div>
-      <div class="pv neut">${fmt(benchRet)}</div>
-      <div class="pl">mês</div>
+      <div class="pl">YTD</div>
+      <div class="pv ${cls(ytd)}">${fmt(ytd)}</div>
+    </div>
+    <div class="pill">
+      <div class="pl">12 Meses</div>
+      <div class="pv ${cls(ret12p)}">${fmt(ret12p)}</div>
+    </div>
+    <div class="pill">
+      <div class="pl">Desde Início</div>
+      <div class="pv ${cls(cumP)}">${fmt(cumP)}</div>
     </div>
     ${diff!=null?`<div class="pill">
-      <div class="pl">Alpha</div>
+      <div class="pl">Alpha — Mês</div>
       <div class="pv ${dcls(diff)}">${fmt(diff)}</div>
-      <div class="pl">vs ${benchShort}</div>
+      <div class="pl" style="font-size:7px">vs ${benchShort}</div>
     </div>`:''}`;
 }
 
@@ -445,7 +475,37 @@ function computeStats() {
     peak=Math.max(peak,val);
   });
 
-  return { n, annualVol, maxMonthly, minMonthly, posMonths, above, cumRet, ret12, maxDD };
+  // ── Sharpe Ratio ──────────────────────────────────────
+  // Taxa livre de risco: CDI ≈ 10.75% a.a. (média do período — ajustar se necessário)
+  const RF_MONTHLY_PCT = ((1 + 0.1075) ** (1/12) - 1) * 100; // ≈ 0.854%/mês
+  const excessRets = rets.map(r => r - RF_MONTHLY_PCT);
+  const meanExcess = excessRets.reduce((s, r) => s + r, 0) / excessRets.length;
+  const sharpe = annualVol > 0 ? (meanExcess * 12) / annualVol : null;
+
+  // ── Beta vs Benchmark ─────────────────────────────────
+  const pPaired = [], bPaired = [];
+  allMonths.filter(m => m <= compMonth).forEach(m => {
+    const p = portMonRet(m), b = benchMonRet(m);
+    if (p !== null && b !== null) { pPaired.push(p); bPaired.push(b); }
+  });
+  let beta = null;
+  if (pPaired.length > 3) {
+    const mp   = pPaired.reduce((s, r) => s + r, 0) / pPaired.length;
+    const mb   = bPaired.reduce((s, r) => s + r, 0) / bPaired.length;
+    const varB = bPaired.reduce((s, r) => s + (r - mb) ** 2, 0) / (bPaired.length - 1);
+    const covPB= pPaired.reduce((s, r, i) => s + (r - mp) * (bPaired[i] - mb), 0) / (pPaired.length - 1);
+    beta = varB > 0 ? covPB / varB : null;
+  }
+
+  // ── Concentração Top 5 ────────────────────────────────
+  const wComp = wh[compMonth] || {};
+  const top5 = Object.values(wComp)
+    .filter(w => w > 0)
+    .sort((a, b) => b - a)
+    .slice(0, 5)
+    .reduce((s, w) => s + w, 0);
+
+  return { n, annualVol, maxMonthly, minMonthly, posMonths, above, cumRet, ret12, maxDD, sharpe, beta, top5 };
 }
 
 function renderStatCards(s, activeCount, benchShort) {
@@ -468,10 +528,10 @@ function renderStatCards(s, activeCount, benchShort) {
       <div class="sc-val" style="font-size:13px">${fmtPct(s.ret12)}</div>
       <div class="sc-sub">últimos 12 meses</div>
     </div>
-    <div class="sc green">
-      <div class="sc-lbl">Meses Positivos</div>
-      <div class="sc-val">${s.posMonths}<span style="font-size:10px;font-weight:400;color:#718096">/${s.n}</span></div>
-      <div class="sc-sub">${(s.posMonths/s.n*100).toFixed(0)}% do total</div>
+    <div class="sc ${s.sharpe!=null?(s.sharpe>=0?'green':'red'):'amber'}">
+      <div class="sc-lbl">Sharpe Ratio</div>
+      <div class="sc-val">${s.sharpe!=null?s.sharpe.toFixed(2):'—'}</div>
+      <div class="sc-sub">CDI ref. ~10.75% a.a.</div>
     </div>
     <div class="sc red">
       <div class="sc-lbl">Max Drawdown</div>
@@ -572,18 +632,21 @@ function renderInfoPanel(s, portName, benchShort, benchLbl) {
   const alpha  = (s.cumRet!=null && bCum!=null) ? s.cumRet - bCum : null;
 
   const rows = [
-    { lbl:'Início da carteira',   val: startLabel,              plain:true },
-    { lbl:'Benchmark',            val: benchLbl,                plain:true },
-    { lbl:'Número de ativos',     val: `${s.n!=null?Object.keys(wh[compMonth]||{}).filter(t=>(wh[compMonth][t]||0)>0).length:'—'} ações`, plain:true },
+    { lbl:'Início da carteira',      val: startLabel,              plain:true },
+    { lbl:'Benchmark',               val: benchLbl,                plain:true },
+    { lbl:'Número de ativos',        val: `${s.n!=null?Object.keys(wh[compMonth]||{}).filter(t=>(wh[compMonth][t]||0)>0).length:'—'} ações`, plain:true },
+    { lbl:'Concentração top 5',      val: s.top5>0 ? s.top5.toFixed(1)+'%' : '—', plain:true },
     null, // separador
-    { lbl:'Retorno acumulado',    val: fmtPct(s.cumRet),        pos: s.cumRet>=0 },
-    { lbl:`${benchShort} acumulado`, val: fmtPct(bCum),         pos: bCum>=0 },
-    { lbl:'Alpha acumulado',      val: fmtPct(alpha),           pos: alpha>=0, bold:true },
+    { lbl:'Retorno acumulado',       val: fmtPct(s.cumRet),        pos: s.cumRet>=0 },
+    { lbl:`${benchShort} acumulado`, val: fmtPct(bCum),            pos: bCum>=0 },
+    { lbl:'Alpha acumulado',         val: fmtPct(alpha),           pos: alpha>=0, bold:true },
     null,
-    { lbl:'Retorno últimos 12m',  val: fmtPct(s.ret12),         pos: s.ret12>=0 },
-    { lbl:'Volatilidade anual.',  val: s.annualVol!=null ? s.annualVol.toFixed(1)+'%' : '—', plain:true },
-    { lbl:'Melhor mês',           val: fmtAbs(s.maxMonthly),    pos: true },
-    { lbl:'Pior mês',             val: fmtAbs(s.minMonthly),    pos: s.minMonthly>=0 },
+    { lbl:'Retorno últimos 12m',     val: fmtPct(s.ret12),         pos: s.ret12>=0 },
+    { lbl:'Volatilidade anual.',     val: s.annualVol!=null ? s.annualVol.toFixed(1)+'%' : '—', plain:true },
+    { lbl:'Sharpe (CDI ref.)',       val: s.sharpe!=null ? s.sharpe.toFixed(2) : '—', plain:true },
+    { lbl:'Beta vs '+benchShort,     val: s.beta!=null ? s.beta.toFixed(2) : '—', plain:true },
+    { lbl:'Melhor mês',              val: fmtAbs(s.maxMonthly),    pos: true },
+    { lbl:'Pior mês',                val: fmtAbs(s.minMonthly),    pos: s.minMonthly>=0 },
   ];
 
   let html = `<table class="tbl-info">`;
