@@ -355,7 +355,7 @@ function render() {
     <div class="sect">
       <div class="sect-title" id="bar-title">Rentabilidade por Ação — ${compLabel}</div>
       <div class="ch-wrap" id="ch-bar-wrap" style="height:300px"><canvas id="ch-bar"></canvas></div>
-      <div class="note">pp = contribuição à rentabilidade da carteira (peso × retorno). Barra cinza = benchmark.</div>
+      <div class="note">Retorno individual do ativo no mês de referência. Barra cinza = benchmark.</div>
     </div>
   `;
 
@@ -925,31 +925,39 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
     const c=lastClose(ticker,compMonth), p=lastClose(ticker,prevM);
     if (!c||!p) return;
     const ret=(c-p)/p*100;
-    items.push({label:ticker, ret:+ret.toFixed(2), weight:wt, contrib:+(wt/100*ret).toFixed(2), isBench:false});
+    items.push({label:ticker, ret:+ret.toFixed(2), isBench:false});
   });
 
   const bc=lastClose(benchTkr,compMonth), bp=lastClose(benchTkr,prevM);
-  if (bc&&bp) items.push({label:benchLbl, ret:+((bc-bp)/bp*100).toFixed(2), weight:null, contrib:null, isBench:true});
+  if (bc&&bp) items.push({label:benchLbl, ret:+((bc-bp)/bp*100).toFixed(2), isBench:true});
 
   items.sort((a,b)=>b.ret-a.ret);
 
-  // Altura calculada para caber na p.2 sem resize no print (overflow:hidden cuida do resto)
-  // 20px por item + 50px base, máx 265px garante que não vaza para p.3
+  // Altura calculada para caber na p.2 sem resize no print
   const h = Math.max(200, Math.min(265, items.length*20+50));
   document.getElementById('ch-bar-wrap').style.height = h+'px';
 
-  const ppPlugin = {
-    id:'ppLabels',
+  // Plugin: exibe o retorno % no final de cada barra
+  const retLabelPlugin = {
+    id:'retLabels',
     afterDraw(chart){
       const c2=chart.ctx, meta=chart.getDatasetMeta(0);
       const zx=chart.scales.x.getPixelForValue(0);
       c2.save(); c2.font='600 9px Segoe UI,Arial,sans-serif';
-      c2.textAlign='left'; c2.textBaseline='middle';
+      c2.textBaseline='middle';
       meta.data.forEach((bar,i)=>{
         const it=items[i];
-        if (!it||it.isBench||it.contrib==null) return;
-        c2.fillStyle=it.contrib>=0?'#276749':'#c53030';
-        c2.fillText(`${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`, Math.max(bar.x,zx)+4, bar.y);
+        if (!it) return;
+        const pos = it.ret >= 0;
+        c2.fillStyle = it.isBench ? '#718096' : (pos ? '#276749' : '#c53030');
+        const txt = `${pos?'+':''}${it.ret.toFixed(2)}%`;
+        if (pos) {
+          c2.textAlign='left';
+          c2.fillText(txt, bar.x+4, bar.y);
+        } else {
+          c2.textAlign='right';
+          c2.fillText(txt, bar.x-4, bar.y);
+        }
       });
       c2.restore();
     }
@@ -958,7 +966,7 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
   if (chartInstances['bar']) chartInstances['bar'].destroy();
   const ctx = document.getElementById('ch-bar').getContext('2d');
   chartInstances['bar'] = new Chart(ctx, {
-    type:'bar', plugins:[ppPlugin],
+    type:'bar', plugins:[retLabelPlugin],
     data:{
       labels:items.map(it=>it.label),
       datasets:[{
@@ -970,14 +978,11 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
     },
     options:{
       indexAxis:'y', responsive:true, maintainAspectRatio:false, animation:false,
-      layout:{padding:{right:52}},
+      layout:{padding:{right:52, left:8}},
       plugins:{
         legend:{display:false},
         tooltip:{callbacks:{label:c=>{
-          const it=items[c.dataIndex];
-          let s=` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`;
-          if (it&&!it.isBench) s+=`   peso: ${it.weight}%   contrib: ${it.contrib>=0?'+':''}${it.contrib.toFixed(2)}pp`;
-          return s;
+          return ` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`;
         }}}
       },
       scales:{
