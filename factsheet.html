@@ -995,17 +995,37 @@ function renderBarChart(portName, benchLbl, tickers, compLabel) {
 }
 
 // ── Export PDF via html2canvas + jsPDF ──────────────────────────────────────
-// Abordagem: captura cada .sheet como imagem de alta resolução e monta o PDF
-// diretamente, sem usar o diálogo de impressão do browser.
-// Vantagens: sem corte de canvas, sem problema de fundo branco no logo,
-// sem dependência de eventos de print — o que está na tela é o que vai pro PDF.
+// PNG (lossless): evita artefatos JPEG em logos com texto/borda nítida.
+// Logo pré-carregado como base64 inline: html2canvas sempre o enxerga.
 async function exportPDF() {
   const btn = document.querySelector('.btn-print');
   const originalText = btn.innerHTML;
 
+  // Converte todas as <img class="logo-img"> para base64 inline,
+  // garantindo que html2canvas renderize o logo sem falha de CORS ou timing.
+  async function inlineLogos() {
+    const imgs = [...document.querySelectorAll('.logo-img')];
+    await Promise.all(imgs.map(img => new Promise(resolve => {
+      const doConvert = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width  = img.naturalWidth  || 400;
+          c.height = img.naturalHeight || 120;
+          const cx = c.getContext('2d');
+          cx.drawImage(img, 0, 0);
+          img.src = c.toDataURL('image/png');
+        } catch(_) { /* taint — deixa como está */ }
+        resolve();
+      };
+      if (img.complete && img.naturalWidth > 0) doConvert();
+      else { img.onload = doConvert; img.onerror = resolve; }
+    })));
+  }
+
   try {
     btn.disabled = true;
     btn.innerHTML = '⏳ Gerando PDF…';
+    await inlineLogos();
 
     const { jsPDF } = window.jspdf;
     // A4 em mm: 210 × 297
@@ -1042,6 +1062,7 @@ async function exportPDF() {
       const canvas = await html2canvas(sheet, {
         scale: 4,              // 4× resolução → ~416 DPI no A4 — texto nítido
         useCORS: true,         // carrega imagens cross-origin (logo)
+        allowTaint: false,     // logo já foi inlined como base64 — sem risco de taint
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth:  sheet.scrollWidth,
@@ -1053,13 +1074,13 @@ async function exportPDF() {
       sheet.style.position  = prevPosition;
       if (footer) footer.setAttribute('style', prevFooterStyle);
 
-      // JPEG qualidade máxima: jsPDF embute nativamente sem reprocessamento
-      const imgData = canvas.toDataURL('image/jpeg', 1.0);
+      // PNG (lossless): sem artefatos em texto/logos, fundamental para qualidade
+      const imgData = canvas.toDataURL('image/png');
       const imgW_mm = pageW - margin * 2;
       const imgH_mm = (canvas.height / canvas.width) * imgW_mm;
 
       if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', margin, margin, imgW_mm, imgH_mm, undefined, 'NONE');
+      pdf.addImage(imgData, 'PNG', margin, margin, imgW_mm, imgH_mm, undefined, 'NONE');
     }
 
     // Nome do arquivo = título da aba (ex: Factsheet_Carteira_de_Ações_2026-02)
